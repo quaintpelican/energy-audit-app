@@ -177,6 +177,7 @@ function migrateAudit(audit){
   const migrated = structuredClone(audit);
   const oldVersion = Number(migrated.schemaVersion || 2);
   const warnings=[];
+  let changed=oldVersion<SCHEMA_VERSION;
 
   if(!Number.isFinite(oldVersion)) throw new Error("Audit schema version is invalid.");
   if(oldVersion>SCHEMA_VERSION){
@@ -190,43 +191,64 @@ function migrateAudit(audit){
     migrated.ecms = migrated.ecms || [];
     migrated.calculations = migrated.calculations || [];
     migrated.metadata = {...(migrated.metadata||{}), app:"Audist", appVersion:APP_VERSION};
+  }
 
-    migrated.equipment.forEach(eq=>{
-      eq.recordId = eq.recordId || uid();
-      eq.measurements = eq.measurements || [];
-      eq.photos = eq.photos || [];
-      eq.status = eq.status || "complete";
-    });
+  migrated.metadata=migrated.metadata||{};
+  migrated.equipment=migrated.equipment||[];
+  migrated.ecms=migrated.ecms||[];
+  migrated.calculations=migrated.calculations||[];
+  migrated.equipment.forEach(eq=>{
+    if(!eq.recordId){ eq.recordId=uid(); changed=true; }
+    if(!Array.isArray(eq.measurements)){ eq.measurements=[]; changed=true; }
+    if(!Array.isArray(eq.photos)){ eq.photos=[]; changed=true; }
+    if(!eq.status){ eq.status="complete"; changed=true; }
+  });
 
-    migrated.ecms.forEach(ecm=>{
-      ecm.unresolvedEquipmentReferences=ecm.unresolvedEquipmentReferences||[];
-      if(!ecm.affectedEquipmentRecordIds){
-        ecm.affectedEquipmentRecordIds=[];
-        (ecm.affectedEquipmentIds||[]).forEach(displayId=>{
-          const matches=migrated.equipment.filter(eq=>eq.equipmentId===displayId);
-          if(matches.length===1) ecm.affectedEquipmentRecordIds.push(matches[0].recordId);
-          else{
-            const reason=matches.length?"duplicate-display-id":"equipment-not-found";
-            if(!ecm.unresolvedEquipmentReferences.some(ref=>ref.displayId===displayId&&ref.source==="legacy-affectedEquipmentIds")){
-              ecm.unresolvedEquipmentReferences.push({
-                displayId,
-                source:"legacy-affectedEquipmentIds",
-                reason,
-                candidateRecordIds:matches.map(eq=>eq.recordId),
-                migratedAt:nowISO(),
-                resolution:null
-              });
-            }
-            warnings.push(`ECM ${ecm.ecmId||"(unknown)"}: could not uniquely resolve equipment ID ${displayId} (${reason}).`);
-          }
-        });
+  migrated.ecms.forEach(ecm=>{
+    if(!Array.isArray(ecm.unresolvedEquipmentReferences)){ ecm.unresolvedEquipmentReferences=[]; changed=true; }
+    if(!Array.isArray(ecm.affectedEquipmentRecordIds)){
+      ecm.affectedEquipmentRecordIds=[];
+      changed=true;
+    }
+    (ecm.affectedEquipmentIds||[]).forEach(displayId=>{
+      const matches=migrated.equipment.filter(eq=>eq.equipmentId===displayId);
+      const alreadyLinked=matches.some(eq=>ecm.affectedEquipmentRecordIds.includes(eq.recordId));
+      if(matches.length===1&&!alreadyLinked){
+        ecm.affectedEquipmentRecordIds.push(matches[0].recordId);
+        changed=true;
+      }
+      const ambiguous=matches.length>1;
+      const unresolvedMissing=matches.length===0;
+      if(ambiguous||unresolvedMissing){
+        const reason=ambiguous?"duplicate-display-id":"equipment-not-found";
+        if(!ecm.unresolvedEquipmentReferences.some(ref=>ref.displayId===displayId&&ref.source==="legacy-affectedEquipmentIds"&&!ref.resolution)){
+          ecm.unresolvedEquipmentReferences.push({
+            displayId,
+            source:"legacy-affectedEquipmentIds",
+            reason,
+            candidateRecordIds:matches.map(eq=>eq.recordId),
+            migratedAt:nowISO(),
+            resolution:null
+          });
+          changed=true;
+        }
       }
     });
-    migrated.metadata.migrationWarnings=warnings;
+    ecm.unresolvedEquipmentReferences.filter(ref=>!ref.resolution).forEach(ref=>{
+      warnings.push(`ECM ${ecm.ecmId||"(unknown)"}: unresolved equipment ID ${ref.displayId} (${ref.reason||"review-required"}).`);
+    });
+  });
+
+  if(warnings.length){
+    const existing=migrated.metadata.migrationWarnings||[];
+    const combined=[...new Set([...existing,...warnings])];
+    if(JSON.stringify(combined)!==JSON.stringify(existing)){ migrated.metadata.migrationWarnings=combined; changed=true; }
+  }
+  if(oldVersion < 3){
     migrated.metadata.migratedFromSchemaVersion=oldVersion;
     migrated.metadata.migratedAt=nowISO();
   }
-  return {audit:migrated,changed:oldVersion<SCHEMA_VERSION,warnings};
+  return {audit:migrated,changed,warnings:migrated.metadata.migrationWarnings||[]};
 }
 
 function validateAuditStructure(audit){
@@ -315,7 +337,7 @@ async function openAudit(id){
     $("migration-warning").innerHTML=persistedWarnings.length
       ? `<strong>Migration review required</strong><ul>${persistedWarnings.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul>`
       : "";
-    if(migration.warnings.length) alert(`Migration completed with ${migration.warnings.length} warning(s). Export the audit and review its migrationWarnings before field use.`);
+    if(migration.changed&&migration.warnings.length) alert(`Migration completed with ${migration.warnings.length} warning(s). Export the audit and review its migrationWarnings before field use.`);
   }catch(error){
     console.error(error);
     currentAudit=null;
