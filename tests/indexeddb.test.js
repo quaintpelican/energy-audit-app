@@ -159,3 +159,25 @@ test("rollback bridge upgrades production DB2 and remains baseline-API compatibl
   assert.deepEqual([...stores],["audits","migrationBackups","photos"]);
 });
 
+test("rollback bridge permanent deletion also removes V3.1 migration backups",async()=>{
+  const indexedDB=new IDBFactory();
+  await seedDatabase(indexedDB,2,{withPhoto:true});
+  const bridge=loadBridge(indexedDB);
+  await vm.runInContext(`(async()=>{
+    const db=await openDB();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction("migrationBackups","readwrite");
+      tx.objectStore("migrationBackups").put({backupId:"backup-1",auditId:"audit-1",createdAt:"2026-01-01",audit:{auditId:"audit-1"}});
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+    });
+    await dbDeleteAudit("audit-1");
+  })()`,bridge);
+  const counts=await vm.runInContext(`(async()=>{
+    const db=await openDB();
+    return Promise.all(["audits","photos","migrationBackups"].map(store=>new Promise((resolve,reject)=>{
+      const req=db.transaction(store).objectStore(store).count();req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+    })));
+  })()`,bridge);
+  assert.deepEqual([...counts],[0,0,0]);
+});
+
