@@ -28,5 +28,7 @@ dialog{border:0;border-radius:16px;width:min(94vw,800px);max-height:90vh;overflo
 .badge-ok{color:#166534;font-weight:700}.badge-warn{color:#a16207;font-weight:700}
 
 .badge-recommend{color:#475569;font-weight:700}
+.migration-warning{border:2px solid #d97706;background:#fffbeb;color:#78350f;font-weight:650}
 .photo-missing{aspect-ratio:1;display:grid;place-items:center;background:#e2e8f0;border-radius:10px;color:#64748b;font-size:12px;text-align:center;padding:8px}
 select[multiple]{min-height:130px}
+
