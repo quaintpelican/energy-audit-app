@@ -1,0 +1,11 @@
+{
+  "name": "audist-v3-1-reliability-tests",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.2"
+  }
+}
+
