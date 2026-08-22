@@ -1,6 +1,6 @@
 {
-  "name": "Field Energy Audit",
-  "short_name": "Energy Audit",
+  "name": "Audist",
+  "short_name": "Audist",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f1f5f9",

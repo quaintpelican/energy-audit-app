@@ -7,13 +7,13 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="stylesheet" href="styles.css" />
-  <title>Field Energy Audit</title>
+  <title>Audist</title>
 </head>
 <body>
   <header class="app-header">
     <div>
-      <h1>Field Energy Audit</h1>
-      <p id="header-status">V2 • Offline-first</p>
+      <h1>Audist</h1>
+      <p id="header-status">V3.1 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -208,7 +208,7 @@
     <div class="dialog-head"><h3>Add ECM</h3><button class="secondary icon" id="close-ecm">✕</button></div>
     <label>ECM Title<input id="ecmTitle" /></label>
     <label>Category<select id="ecmCategory"><option>HVAC</option><option>Lighting</option><option>DHW</option><option>Controls</option><option>Envelope</option><option>Other</option></select></label>
-    <label>Affected Equipment IDs<input id="ecmEquipment" placeholder="AHU-1, AHU-2" /></label>
+    <label>Affected Equipment<select id="ecmEquipment" multiple size="5"></select><small class="muted">Select one or more equipment records.</small></label>
     <label>Existing Condition<textarea id="ecmExisting" rows="2"></textarea></label>
     <label>Proposed Improvement<textarea id="ecmProposed" rows="2"></textarea></label>
     <label>Data Still Needed<textarea id="ecmMissing" rows="2"></textarea></label>
