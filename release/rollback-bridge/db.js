@@ -60,11 +60,16 @@ async function dbGetAllAudits(){
 async function dbDeleteAudit(id){
   const db=await openDB();
   return new Promise((resolve,reject)=>{
-    const tx=db.transaction([AUDIT_STORE,PHOTO_STORE],"readwrite");
+    const tx=db.transaction([AUDIT_STORE,PHOTO_STORE,MIGRATION_BACKUP_STORE],"readwrite");
     tx.objectStore(AUDIT_STORE).delete(id);
     const idx=tx.objectStore(PHOTO_STORE).index("auditId");
     const cursorReq=idx.openCursor(IDBKeyRange.only(id));
     cursorReq.onsuccess=e=>{
+      const cursor=e.target.result;
+      if(cursor){ cursor.delete(); cursor.continue(); }
+    };
+    const backupReq=tx.objectStore(MIGRATION_BACKUP_STORE).index("auditId").openCursor(IDBKeyRange.only(id));
+    backupReq.onsuccess=e=>{
       const cursor=e.target.result;
       if(cursor){ cursor.delete(); cursor.continue(); }
     };
