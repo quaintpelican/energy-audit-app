@@ -186,10 +186,21 @@ function migrateAudit(audit){
     });
 
     migrated.ecms.forEach(ecm=>{
+      ecm.unresolvedEquipmentReferences=ecm.unresolvedEquipmentReferences||[];
       if(!ecm.affectedEquipmentRecordIds){
-        ecm.affectedEquipmentRecordIds = (ecm.affectedEquipmentIds||[])
-          .map(displayId=>migrated.equipment.find(eq=>eq.equipmentId===displayId)?.recordId)
-          .filter(Boolean);
+        ecm.affectedEquipmentRecordIds=[];
+        (ecm.affectedEquipmentIds||[]).forEach(displayId=>{
+          const matches=migrated.equipment.filter(eq=>eq.equipmentId===displayId);
+          if(matches.length===1) ecm.affectedEquipmentRecordIds.push(matches[0].recordId);
+          else ecm.unresolvedEquipmentReferences.push({
+            displayId,
+            source:"legacy-affectedEquipmentIds",
+            reason:matches.length?"duplicate-display-id":"equipment-not-found",
+            candidateRecordIds:matches.map(eq=>eq.recordId),
+            migratedAt:nowISO(),
+            resolution:null
+          });
+        });
       }
     });
   }
@@ -345,7 +356,12 @@ async function openNewEquipment(){
     measurements:[],photos:[],potentialEcmFlags:[],createdAt:nowISO(),updatedAt:nowISO(),status:"in_progress"
   };
   currentAudit.equipment.push(draftEquipment);
-  if(!await saveCurrent()) return;
+  if(!await saveCurrent()){
+    currentAudit.equipment=currentAudit.equipment.filter(eq=>eq.recordId!==draftEquipment.recordId);
+    draftEquipment=null;
+    alert("Equipment could not be created because local persistence failed. No equipment record was retained.");
+    return;
+  }
   $("equipment-record-id").value=draftEquipment.recordId;
   $("equipment-dialog-title").textContent=`Add ${activeType} Equipment`;
   renderEquipmentFields(activeType,draftEquipment);
@@ -395,13 +411,18 @@ async function finishEquipment(){
   }
 }
 async function deleteEquipment(id){
-  const linked=currentAudit.ecms.filter(e=>(e.affectedEquipmentRecordIds||[]).includes(id));
+  const eq=currentAudit.equipment.find(x=>x.recordId===id);
+  const linked=currentAudit.ecms.filter(e=>
+    (e.affectedEquipmentRecordIds||[]).includes(id)||
+    (e.unresolvedEquipmentReferences||[]).some(ref=>!ref.resolution&&(
+      ref.displayId===eq?.equipmentId||(ref.candidateRecordIds||[]).includes(id)
+    ))
+  );
   if(linked.length){
     alert(`This equipment is linked to ${linked.length} ECM(s). Remove those relationships before deleting it.`);
     return;
   }
   if(!confirm("Delete this equipment record and its stored photos?")) return;
-  const eq=currentAudit.equipment.find(x=>x.recordId===id);
   for(const p of (eq?.photos||[])) await dbDeletePhoto(p.photoId).catch(()=>{});
   currentAudit.equipment=currentAudit.equipment.filter(x=>x.recordId!==id);
   await saveCurrent(); render();
@@ -616,7 +637,7 @@ async function saveEcm(){
   if(!$("ecmTitle").value){ alert("ECM title is required."); return; }
   const recordIds=selectedEcmEquipmentRecordIds();
   const displayIds=getEquipmentByRecordIds(recordIds).map(eq=>eq.equipmentId);
-  const payload={
+  const editable={
     title:$("ecmTitle").value,
     category:$("ecmCategory").value,
     affectedEquipmentRecordIds:recordIds,
@@ -625,15 +646,22 @@ async function saveEcm(){
     proposedImprovement:$("ecmProposed").value,
     missingData:$("ecmMissing").value,
     confidence:$("ecmConfidence").value,
-    savings:{electricKwh:null,demandKw:null,therms:null,cost:null,method:null},
-    implementationCost:null,simplePaybackYears:null,templateKey:$("ecm-template").value||null
+    templateKey:$("ecm-template").value||null
   };
 
   if(editingEcmId){
     const e=currentAudit.ecms.find(x=>x.ecmId===editingEcmId);
-    Object.assign(e,payload,{updatedAt:nowISO()});
+    Object.assign(e,editable,{updatedAt:nowISO()});
   }else{
-    currentAudit.ecms.push({ecmId:`ECM-${String(currentAudit.ecms.length+1).padStart(2,"0")}`,...payload,createdAt:nowISO()});
+    currentAudit.ecms.push({
+      ecmId:`ECM-${String(currentAudit.ecms.length+1).padStart(2,"0")}`,
+      ...editable,
+      unresolvedEquipmentReferences:[],
+      savings:{electricKwh:null,demandKw:null,therms:null,cost:null,method:null},
+      implementationCost:null,
+      simplePaybackYears:null,
+      createdAt:nowISO()
+    });
   }
   if(await saveCurrent()){
     $("ecm-dialog").close();
