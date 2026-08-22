@@ -12,6 +12,7 @@ let changeRevision = 0;
 let persistedRevision = 0;
 let availablePhotoIds = new Set();
 let photoPreviewUrls = [];
+let currentMigrationBackup = null;
 
 const $ = id => document.getElementById(id);
 const nowISO = () => new Date().toISOString();
@@ -198,12 +199,26 @@ function migrateAudit(audit){
     });
 
     migrated.ecms.forEach(ecm=>{
+      ecm.unresolvedEquipmentReferences=ecm.unresolvedEquipmentReferences||[];
       if(!ecm.affectedEquipmentRecordIds){
         ecm.affectedEquipmentRecordIds=[];
         (ecm.affectedEquipmentIds||[]).forEach(displayId=>{
           const matches=migrated.equipment.filter(eq=>eq.equipmentId===displayId);
           if(matches.length===1) ecm.affectedEquipmentRecordIds.push(matches[0].recordId);
-          else warnings.push(`ECM ${ecm.ecmId||"(unknown)"}: could not uniquely resolve equipment ID ${displayId}.`);
+          else{
+            const reason=matches.length?"duplicate-display-id":"equipment-not-found";
+            if(!ecm.unresolvedEquipmentReferences.some(ref=>ref.displayId===displayId&&ref.source==="legacy-affectedEquipmentIds")){
+              ecm.unresolvedEquipmentReferences.push({
+                displayId,
+                source:"legacy-affectedEquipmentIds",
+                reason,
+                candidateRecordIds:matches.map(eq=>eq.recordId),
+                migratedAt:nowISO(),
+                resolution:null
+              });
+            }
+            warnings.push(`ECM ${ecm.ecmId||"(unknown)"}: could not uniquely resolve equipment ID ${displayId} (${reason}).`);
+          }
         });
       }
     });
@@ -212,6 +227,32 @@ function migrateAudit(audit){
     migrated.metadata.migratedAt=nowISO();
   }
   return {audit:migrated,changed:oldVersion<SCHEMA_VERSION,warnings};
+}
+
+function validateAuditStructure(audit){
+  const errors=[];
+  if(!audit||typeof audit!=="object") errors.push("Audit is not an object.");
+  if(!String(audit?.auditId||"").trim()) errors.push("Audit ID is missing.");
+  if(!audit?.site||typeof audit.site!=="object"||Array.isArray(audit.site)) errors.push("Site record is invalid.");
+  for(const key of ["equipment","ecms","calculations"]){
+    if(!Array.isArray(audit?.[key])) errors.push(`${key} must be an array.`);
+  }
+  const recordIds=(audit?.equipment||[]).map(eq=>eq.recordId);
+  if(recordIds.some(id=>!String(id||"").trim())) errors.push("An equipment record UUID is missing.");
+  if(new Set(recordIds).size!==recordIds.length) errors.push("Equipment record UUIDs are not unique.");
+  (audit?.ecms||[]).forEach(ecm=>{
+    if(!Array.isArray(ecm.affectedEquipmentRecordIds)) errors.push(`ECM ${ecm.ecmId||"(unknown)"} has invalid UUID relationships.`);
+    if(!Array.isArray(ecm.unresolvedEquipmentReferences||[])) errors.push(`ECM ${ecm.ecmId||"(unknown)"} has invalid unresolved relationships.`);
+    (ecm.unresolvedEquipmentReferences||[]).forEach(ref=>{
+      if(!ref||!String(ref.displayId||"").trim()||!String(ref.source||"").trim()) errors.push(`ECM ${ecm.ecmId||"(unknown)"} has an incomplete unresolved relationship record.`);
+      if(ref?.candidateRecordIds&&!Array.isArray(ref.candidateRecordIds)) errors.push(`ECM ${ecm.ecmId||"(unknown)"} has invalid unresolved relationship candidates.`);
+    });
+    (ecm.affectedEquipmentRecordIds||[]).forEach(id=>{
+      if(!recordIds.includes(id)) errors.push(`ECM ${ecm.ecmId||"(unknown)"} references missing equipment UUID ${id}.`);
+    });
+  });
+  if(errors.length) throw new Error(`Migration validation failed: ${errors.join(" ")}`);
+  return true;
 }
 
 function escapeHtml(s=""){
@@ -251,10 +292,12 @@ async function openAudit(id){
     if(!stored) throw new Error("Audit could not be found on this device.");
     const migration=migrateAudit(stored);
     if(migration.changed){
+      validateAuditStructure(migration.audit);
       await dbBackupAudit(stored,`schema-${stored.schemaVersion||2}-to-${SCHEMA_VERSION}`);
       await dbPutAudit(migration.audit);
     }
     currentAudit=migration.audit;
+    currentMigrationBackup=await dbGetLatestMigrationBackup(id);
     availablePhotoIds=new Set((await dbGetPhotosForAudit(id)).map(p=>p.photoId));
     changeRevision=0;
     persistedRevision=0;
@@ -266,6 +309,12 @@ async function openAudit(id){
     populateUtility();
     recalculateAllCompleteness();
     render();
+    $("export-migration-backup-btn").classList.toggle("hidden",!currentMigrationBackup);
+    const persistedWarnings=currentAudit.metadata?.migrationWarnings||[];
+    $("migration-warning").classList.toggle("hidden",persistedWarnings.length===0);
+    $("migration-warning").innerHTML=persistedWarnings.length
+      ? `<strong>Migration review required</strong><ul>${persistedWarnings.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul>`
+      : "";
     if(migration.warnings.length) alert(`Migration completed with ${migration.warnings.length} warning(s). Export the audit and review its migrationWarnings before field use.`);
   }catch(error){
     console.error(error);
@@ -414,7 +463,12 @@ async function openNewEquipment(){
     measurements:[],photos:[],potentialEcmFlags:[],createdAt:nowISO(),updatedAt:nowISO(),status:"in_progress"
   };
   currentAudit.equipment.push(draftEquipment);
-  if(!await saveCurrent()) return;
+  if(!await saveCurrent()){
+    currentAudit.equipment=currentAudit.equipment.filter(eq=>eq.recordId!==draftEquipment.recordId);
+    draftEquipment=null;
+    alert("Equipment could not be created because local persistence failed. No equipment record was retained.");
+    return;
+  }
   $("equipment-record-id").value=draftEquipment.recordId;
   $("equipment-dialog-title").textContent=`Add ${activeType} Equipment`;
   renderEquipmentFields(activeType,draftEquipment);
@@ -473,16 +527,22 @@ async function finishEquipment(){
   }
 }
 async function deleteEquipment(id){
-  const linked=currentAudit.ecms.filter(e=>(e.affectedEquipmentRecordIds||[]).includes(id));
+  const eq=currentAudit.equipment.find(x=>x.recordId===id);
+  const linked=currentAudit.ecms.filter(e=>
+    (e.affectedEquipmentRecordIds||[]).includes(id)||
+    (e.unresolvedEquipmentReferences||[]).some(ref=>!ref.resolution&&(
+      ref.displayId===eq?.equipmentId||(ref.candidateRecordIds||[]).includes(id)
+    ))
+  );
   if(linked.length){
     alert(`This equipment is linked to ${linked.length} ECM(s). Remove those relationships before deleting it.`);
     return;
   }
   if(!confirm("Delete this equipment record and its stored photos?")) return;
   const previous=currentAudit.equipment;
-  const eq=previous.find(x=>x.recordId===id);
+  const deleting=previous.find(x=>x.recordId===id);
   currentAudit.equipment=previous.filter(x=>x.recordId!==id);
-  const photoIds=(eq?.photos||[]).map(p=>p.photoId).filter(id=>availablePhotoIds.has(id));
+  const photoIds=(deleting?.photos||[]).map(p=>p.photoId).filter(id=>availablePhotoIds.has(id));
   if(await saveCurrentWithPhotos({deletePhotoIds:photoIds})) render();
   else currentAudit.equipment=previous;
 }
@@ -642,7 +702,8 @@ function recalculateAllCompleteness(){
   if(!currentAudit) return;
   currentAudit.ecms.forEach(ecm=>{
     const linked=getEquipmentByRecordIds(ecm.affectedEquipmentRecordIds||[]);
-    ecm.affectedEquipmentIds=linked.map(eq=>eq.equipmentId);
+    const unresolved=(ecm.unresolvedEquipmentReferences||[]).filter(ref=>!ref.resolution).map(ref=>ref.displayId);
+    ecm.affectedEquipmentIds=[...new Set([...linked.map(eq=>eq.equipmentId),...unresolved])];
     if(ecm.templateKey){
       const result=evaluateTemplate(ecm.templateKey,ecm.affectedEquipmentRecordIds||[]);
       ecm.completenessPercent=result.percent;
@@ -716,7 +777,7 @@ async function saveEcm(){
   if(!$("ecmTitle").value){ alert("ECM title is required."); return; }
   const recordIds=selectedEcmEquipmentRecordIds();
   const displayIds=getEquipmentByRecordIds(recordIds).map(eq=>eq.equipmentId);
-  const payload={
+  const editable={
     title:$("ecmTitle").value,
     category:$("ecmCategory").value,
     affectedEquipmentRecordIds:recordIds,
@@ -725,8 +786,7 @@ async function saveEcm(){
     proposedImprovement:$("ecmProposed").value,
     missingData:$("ecmMissing").value,
     confidence:$("ecmConfidence").value,
-    savings:{electricKwh:null,demandKw:null,therms:null,cost:null,method:null},
-    implementationCost:null,simplePaybackYears:null,templateKey:$("ecm-template").value||null
+    templateKey:$("ecm-template").value||null
   };
 
   let rollback;
@@ -734,9 +794,14 @@ async function saveEcm(){
     const e=currentAudit.ecms.find(x=>x.ecmId===editingEcmId);
     const previous=structuredClone(e);
     rollback=()=>Object.assign(e,previous);
-    Object.assign(e,payload,{updatedAt:nowISO()});
+    Object.assign(e,editable,{updatedAt:nowISO()});
   }else{
-    const created={ecmId:nextEcmId(),...payload,createdAt:nowISO()};
+    const created={
+      ecmId:nextEcmId(),...editable,
+      unresolvedEquipmentReferences:[],
+      savings:{electricKwh:null,demandKw:null,therms:null,cost:null,method:null},
+      implementationCost:null,simplePaybackYears:null,createdAt:nowISO()
+    };
     currentAudit.ecms.push(created);
     rollback=()=>{ currentAudit.ecms=currentAudit.ecms.filter(x=>x!==created); };
   }
@@ -841,6 +906,18 @@ async function exportAudit(){
   a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+
+function exportMigrationBackup(){
+  if(!currentMigrationBackup?.audit){ alert("No migration backup is available for this audit."); return; }
+  const safe=(currentMigrationBackup.audit.site?.facilityName||"energy-audit").replace(/[^a-z0-9]+/gi,"_");
+  const blob=new Blob([JSON.stringify(currentMigrationBackup.audit,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=`${safe}_pre-migration-backup_${currentMigrationBackup.createdAt.slice(0,10)}.json`;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
 async function deleteCurrentAudit(){
   if(!confirm("Delete this entire audit from this device? Export first if you need a backup.")) return;
   await dbDeleteAudit(currentAudit.auditId);
@@ -890,6 +967,7 @@ $("cancel-ecm").onclick=()=>$("ecm-dialog").close();
 $("close-ecm").onclick=()=>$("ecm-dialog").close();
 
 $("export-btn").onclick=exportAudit;
+$("export-migration-backup-btn").onclick=exportMigrationBackup;
 $("delete-audit-btn").onclick=deleteCurrentAudit;
 $("copy-prompt-btn").onclick=copyPrompt;
 
