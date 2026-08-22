@@ -7,6 +7,11 @@ let draftEquipment = null;
 let saveTimer = null;
 let savePending = false;
 let editingEcmId = null;
+let saveChain = Promise.resolve();
+let changeRevision = 0;
+let persistedRevision = 0;
+let availablePhotoIds = new Set();
+let photoPreviewUrls = [];
 
 const $ = id => document.getElementById(id);
 const nowISO = () => new Date().toISOString();
@@ -47,12 +52,12 @@ const ECM_TEMPLATES = {
       {label:"Motor HP",keys:["fanHp"]},
       {label:"Operating Schedule",keys:["schedule"]},
       {label:"Existing Control Method",keys:["controls"]},
-      {label:"Fan Load / Speed Profile",measurement:["speed","hz","fan load","airflow"]},
-      {label:"Static Pressure",measurement:["static pressure","in. w.c."]}
+      {label:"Fan Load / Speed Profile",measurement:["speed","hz","fan load","airflow"],requireUnit:true},
+      {label:"Static Pressure",measurement:["static pressure","in. w.c."],requireUnit:true}
     ],
     recommended:[
       {label:"Motor Efficiency",keys:["efficiency"]},
-      {label:"Measured Electrical Load",measurement:["kw","amps","current","power factor","voltage"]},
+      {label:"Measured Electrical Load",measurement:["kw","amps","current","power factor","voltage"],requireUnit:true},
       {label:"Controls Photo",photo:["Controls"]}
     ]
   },
@@ -63,10 +68,11 @@ const ECM_TEMPLATES = {
     required:[
       {label:"Existing Schedule",keys:["schedule"]},
       {label:"Occupancy Schedule",site:["hoursWeek"]},
-      {label:"Equipment Capacity / Type",keys:["capacity","equipmentSubtype"]}
+      {label:"Equipment Capacity",keys:["capacity"]},
+      {label:"Equipment Type",keys:["equipmentSubtype"]}
     ],
     recommended:[
-      {label:"Measured or Estimated Operating Power",measurement:["kw","amps","current"]},
+      {label:"Measured or Estimated Operating Power",measurement:["kw","amps","current"],requireUnit:true},
       {label:"Controls / BAS Evidence",photo:["Controls"]}
     ]
   },
@@ -76,12 +82,12 @@ const ECM_TEMPLATES = {
     proposed:"Repair or optimize outside-air economizer controls and sequence.",
     required:[
       {label:"Controls / Sequence",keys:["controls"]},
-      {label:"Outdoor Air Temp",measurement:["outdoor","outside air","osa"]},
-      {label:"Return Air Temp",measurement:["return air"]},
-      {label:"Supply Air Temp",measurement:["supply air"]}
+      {label:"Outdoor Air Temp",measurement:["outdoor","outside air","osa"],requireUnit:true},
+      {label:"Return Air Temp",measurement:["return air"],requireUnit:true},
+      {label:"Supply Air Temp",measurement:["supply air"],requireUnit:true}
     ],
     recommended:[
-      {label:"Humidity / Enthalpy Data",measurement:["humidity","rh","enthalpy"]},
+      {label:"Humidity / Enthalpy Data",measurement:["humidity","rh","enthalpy"],requireUnit:true},
       {label:"Controls Photo",photo:["Controls"]}
     ]
   },
@@ -127,7 +133,7 @@ const ECM_TEMPLATES = {
       {label:"Operating Schedule",keys:["schedule"]}
     ],
     recommended:[
-      {label:"DHW Temperature",measurement:["water temperature","dhw temperature","setpoint"]},
+      {label:"DHW Temperature",measurement:["water temperature","dhw temperature","setpoint"],requireUnit:true},
       {label:"Nameplate Photo",photo:["Nameplate"]}
     ]
   },
@@ -143,7 +149,7 @@ const ECM_TEMPLATES = {
       {label:"Recirculation Configuration",keys:["recirc"]}
     ],
     recommended:[
-      {label:"Peak Flow / Load Information",measurement:["flow","gpm","load"]},
+      {label:"Peak Flow / Load Information",measurement:["flow","gpm","load"],requireUnit:true},
       {label:"Nameplate Photo",photo:["Nameplate"]}
     ]
   }
@@ -169,6 +175,12 @@ function migrateAudit(audit){
   if(!audit) return null;
   const migrated = structuredClone(audit);
   const oldVersion = Number(migrated.schemaVersion || 2);
+  const warnings=[];
+
+  if(!Number.isFinite(oldVersion)) throw new Error("Audit schema version is invalid.");
+  if(oldVersion>SCHEMA_VERSION){
+    throw new Error(`This audit uses schema version ${oldVersion}, which is newer than this app supports. It was opened read-only and was not changed.`);
+  }
 
   if(oldVersion < 3){
     migrated.schemaVersion = 3;
@@ -187,13 +199,19 @@ function migrateAudit(audit){
 
     migrated.ecms.forEach(ecm=>{
       if(!ecm.affectedEquipmentRecordIds){
-        ecm.affectedEquipmentRecordIds = (ecm.affectedEquipmentIds||[])
-          .map(displayId=>migrated.equipment.find(eq=>eq.equipmentId===displayId)?.recordId)
-          .filter(Boolean);
+        ecm.affectedEquipmentRecordIds=[];
+        (ecm.affectedEquipmentIds||[]).forEach(displayId=>{
+          const matches=migrated.equipment.filter(eq=>eq.equipmentId===displayId);
+          if(matches.length===1) ecm.affectedEquipmentRecordIds.push(matches[0].recordId);
+          else warnings.push(`ECM ${ecm.ecmId||"(unknown)"}: could not uniquely resolve equipment ID ${displayId}.`);
+        });
       }
     });
+    migrated.metadata.migrationWarnings=warnings;
+    migrated.metadata.migratedFromSchemaVersion=oldVersion;
+    migrated.metadata.migratedAt=nowISO();
   }
-  return migrated;
+  return {audit:migrated,changed:oldVersion<SCHEMA_VERSION,warnings};
 }
 
 function escapeHtml(s=""){
@@ -228,17 +246,33 @@ async function createAudit(){
 }
 
 async function openAudit(id){
-  let audit=await dbGetAudit(id);
-  const migrated=migrateAudit(audit);
-  if(JSON.stringify(migrated)!==JSON.stringify(audit)) await dbPutAudit(migrated);
-  currentAudit=migrated;
-  $("dashboard-view").classList.add("hidden");
-  $("audit-view").classList.remove("hidden");
-  $("home-btn").style.visibility="visible";
-  populateSite();
-  populateUtility();
-  recalculateAllCompleteness();
-  render();
+  try{
+    const stored=await dbGetAudit(id);
+    if(!stored) throw new Error("Audit could not be found on this device.");
+    const migration=migrateAudit(stored);
+    if(migration.changed){
+      await dbBackupAudit(stored,`schema-${stored.schemaVersion||2}-to-${SCHEMA_VERSION}`);
+      await dbPutAudit(migration.audit);
+    }
+    currentAudit=migration.audit;
+    availablePhotoIds=new Set((await dbGetPhotosForAudit(id)).map(p=>p.photoId));
+    changeRevision=0;
+    persistedRevision=0;
+    savePending=false;
+    $("dashboard-view").classList.add("hidden");
+    $("audit-view").classList.remove("hidden");
+    $("home-btn").style.visibility="visible";
+    populateSite();
+    populateUtility();
+    recalculateAllCompleteness();
+    render();
+    if(migration.warnings.length) alert(`Migration completed with ${migration.warnings.length} warning(s). Export the audit and review its migrationWarnings before field use.`);
+  }catch(error){
+    console.error(error);
+    currentAudit=null;
+    alert(error.message||"This audit could not be opened safely.");
+    await showDashboard();
+  }
 }
 
 function populateSite(){
@@ -251,13 +285,16 @@ function populateUtility(){
   $("gas-rate").value=u.gasRate||"";
   $("utility-notes").value=u.notes||"";
 }
-function markPending(){
+function markPending(increment=true){
+  if(increment) changeRevision++;
   savePending=true;
   $("save-status").textContent="Saving locally…";
   $("save-status").className="save-status pending";
 }
-function markSaved(){
-  savePending=false;
+function markSaved(revision){
+  persistedRevision=Math.max(persistedRevision,revision);
+  savePending=persistedRevision<changeRevision;
+  if(savePending) return;
   $("save-status").textContent=`Saved locally • ${new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}`;
   $("save-status").className="save-status";
 }
@@ -275,15 +312,43 @@ function queueSave(){
 async function saveCurrent(){
   if(!currentAudit) return false;
   clearTimeout(saveTimer);
+  const auditId=currentAudit.auditId;
+  const revision=++changeRevision;
+  markPending(false);
   try{
     currentAudit.updatedAt=nowISO();
     currentAudit.metadata={...(currentAudit.metadata||{}),app:"Audist",appVersion:APP_VERSION};
     recalculateAllCompleteness();
-    await dbPutAudit(currentAudit);
-    markSaved();
+    const snapshot=structuredClone(currentAudit);
+    saveChain=saveChain.catch(()=>{}).then(()=>dbPutAudit(snapshot));
+    await saveChain;
+    if(currentAudit?.auditId===auditId) markSaved(revision);
     return true;
   }catch(e){
     console.error(e);
+    markError();
+    return false;
+  }
+}
+async function saveCurrentWithPhotos({putPhotos=[],deletePhotoIds=[]}={}){
+  if(!currentAudit) return false;
+  clearTimeout(saveTimer);
+  const auditId=currentAudit.auditId;
+  const revision=++changeRevision;
+  markPending(false);
+  try{
+    currentAudit.updatedAt=nowISO();
+    currentAudit.metadata={...(currentAudit.metadata||{}),app:"Audist",appVersion:APP_VERSION};
+    recalculateAllCompleteness();
+    const snapshot=structuredClone(currentAudit);
+    saveChain=saveChain.catch(()=>{}).then(()=>dbCommitAuditAndPhotos(snapshot,{putPhotos,deletePhotoIds}));
+    await saveChain;
+    putPhotos.forEach(p=>availablePhotoIds.add(p.photoId));
+    deletePhotoIds.forEach(id=>availablePhotoIds.delete(id));
+    if(currentAudit?.auditId===auditId) markSaved(revision);
+    return true;
+  }catch(error){
+    console.error(error);
     markError();
     return false;
   }
@@ -315,22 +380,26 @@ async function saveUtilityMonth(){
   if(!$("uMonth").value){ alert("Month is required."); return; }
   currentAudit.utility=currentAudit.utility||{months:[]};
   currentAudit.utility.months=currentAudit.utility.months||[];
-  currentAudit.utility.months.push({
+  const month={
     utilityMonthId:uid(),month:$("uMonth").value,kwh:$("uKwh").value,kw:$("uKw").value,
     electricCost:$("uElectricCost").value,therms:$("uTherms").value,gasCost:$("uGasCost").value,notes:$("uNotes").value
-  });
+  };
+  currentAudit.utility.months.push(month);
   if(await saveCurrent()){ $("utility-dialog").close(); render(); }
+  else currentAudit.utility.months=currentAudit.utility.months.filter(x=>x.utilityMonthId!==month.utilityMonthId);
 }
 async function deleteUtilityMonth(id){
   if(!confirm("Delete this utility month?")) return;
+  const previous=currentAudit.utility.months;
   currentAudit.utility.months=currentAudit.utility.months.filter(x=>x.utilityMonthId!==id);
-  await saveCurrent(); render();
+  if(await saveCurrent()) render();
+  else currentAudit.utility.months=previous;
 }
 
 function nextEquipmentId(type){
   const prefix = type==="HVAC" ? "RTU" : type==="Lighting" ? "LTG" : "DHW";
   let n=1;
-  while(currentAudit.equipment.some(eq=>eq.equipmentId===`${prefix}-${String(n).padStart(2,"0")}`)) n++;
+  while(currentAudit.equipment.some(eq=>String(eq.equipmentId).toLowerCase()===`${prefix}-${String(n).padStart(2,"0")}`.toLowerCase())) n++;
   return `${prefix}-${String(n).padStart(2,"0")}`;
 }
 
@@ -371,6 +440,12 @@ async function editEquipment(id){
 function equipmentFieldChanged(e){
   if(!draftEquipment) return;
   const key=e.target.dataset.equipmentField;
+  if(key==="equipmentId"){
+    const candidate=e.target.value.trim();
+    const duplicate=candidate && currentAudit.equipment.some(eq=>eq.recordId!==draftEquipment.recordId && String(eq.equipmentId||"").trim().toLowerCase()===candidate.toLowerCase());
+    e.target.setCustomValidity(duplicate?"Equipment IDs must be unique.":"");
+    if(duplicate){ e.target.reportValidity(); return; }
+  }
   draftEquipment[key]=e.target.value;
   draftEquipment.updatedAt=nowISO();
   queueSave();
@@ -384,8 +459,11 @@ function syncEquipmentNotes(){
 }
 async function finishEquipment(){
   if(!draftEquipment) return;
+  const idInput=$("f_equipmentId");
+  if(idInput&&!idInput.checkValidity()){ idInput.reportValidity(); return; }
   syncEquipmentNotes();
-  const duplicate=currentAudit.equipment.find(eq=>eq.recordId!==draftEquipment.recordId && eq.equipmentId===draftEquipment.equipmentId);
+  if(!String(draftEquipment.equipmentId||"").trim()){ alert("Equipment ID is required."); return; }
+  const duplicate=currentAudit.equipment.find(eq=>eq.recordId!==draftEquipment.recordId && String(eq.equipmentId||"").trim().toLowerCase()===String(draftEquipment.equipmentId).trim().toLowerCase());
   if(duplicate){ alert(`Equipment ID ${draftEquipment.equipmentId} already exists. Please use a unique ID.`); return; }
   draftEquipment.status="complete";
   draftEquipment.updatedAt=nowISO();
@@ -401,10 +479,12 @@ async function deleteEquipment(id){
     return;
   }
   if(!confirm("Delete this equipment record and its stored photos?")) return;
-  const eq=currentAudit.equipment.find(x=>x.recordId===id);
-  for(const p of (eq?.photos||[])) await dbDeletePhoto(p.photoId).catch(()=>{});
-  currentAudit.equipment=currentAudit.equipment.filter(x=>x.recordId!==id);
-  await saveCurrent(); render();
+  const previous=currentAudit.equipment;
+  const eq=previous.find(x=>x.recordId===id);
+  currentAudit.equipment=previous.filter(x=>x.recordId!==id);
+  const photoIds=(eq?.photos||[]).map(p=>p.photoId).filter(id=>availablePhotoIds.has(id));
+  if(await saveCurrentWithPhotos({deletePhotoIds:photoIds})) render();
+  else currentAudit.equipment=previous;
 }
 
 function openMeasurement(){
@@ -414,23 +494,27 @@ function openMeasurement(){
 }
 async function saveMeasurement(){
   if(!$("mParameter").value){ alert("Parameter is required."); return; }
-  draftEquipment.measurements.push({
+  const parsedValue=Number($("mValue").value);
+  const measurement={
     measurementId:uid(),parameter:$("mParameter").value,value:$("mValue").value,
-    numericValue:$("mValue").value===""?null:Number($("mValue").value),
+    numericValue:$("mValue").value===""||!Number.isFinite(parsedValue)?null:parsedValue,
     unit:$("mUnit").value,source:$("mSource").value,method:$("mMethod").value,
     notes:$("mNotes").value,capturedAt:nowISO()
-  });
+  };
+  draftEquipment.measurements.push(measurement);
   draftEquipment.updatedAt=nowISO();
   if(await saveCurrent()){
     $("measurement-dialog").close();
     renderDraftMeasurements();
     render();
-  }
+  }else draftEquipment.measurements=draftEquipment.measurements.filter(x=>x.measurementId!==measurement.measurementId);
 }
 async function deleteMeasurement(id){
   if(!confirm("Delete this measurement?")) return;
-  draftEquipment.measurements=draftEquipment.measurements.filter(x=>x.measurementId!==id);
-  await saveCurrent(); renderDraftMeasurements(); render();
+  const previous=draftEquipment.measurements;
+  draftEquipment.measurements=previous.filter(x=>x.measurementId!==id);
+  if(await saveCurrent()){ renderDraftMeasurements(); render(); }
+  else draftEquipment.measurements=previous;
 }
 function renderDraftMeasurements(){
   $("measurement-list").innerHTML=(draftEquipment?.measurements||[]).length ? draftEquipment.measurements.map(m=>`
@@ -465,12 +549,12 @@ async function handlePhoto(file){
     const photoId=uid();
     const generatedName=`${equipmentId}_${safeCategory}_${sequence}.jpg`;
 
-    await dbPutPhoto({
+    const storedPhoto={
       photoId,
       auditId:currentAudit.auditId,
       equipmentRecordId:draftEquipment.recordId,
       blob:compressed.blob
-    });
+    };
 
     draftEquipment.photos.push({
       photoId,name:generatedName,category,note,capturedAt:nowISO(),
@@ -478,7 +562,10 @@ async function handlePhoto(file){
     });
     draftEquipment.updatedAt=nowISO();
     $("photo-note").value="";
-    if(!await saveCurrent()) throw new Error("Photo metadata save failed");
+    if(!await saveCurrentWithPhotos({putPhotos:[storedPhoto]})){
+      draftEquipment.photos=draftEquipment.photos.filter(p=>p.photoId!==photoId);
+      throw new Error("Photo save failed");
+    }
     await renderDraftPhotos();
     render();
   }catch(err){
@@ -490,17 +577,20 @@ async function handlePhoto(file){
 }
 async function deletePhoto(id){
   if(!confirm("Delete this photo?")) return;
-  await dbDeletePhoto(id);
-  draftEquipment.photos=draftEquipment.photos.filter(x=>x.photoId!==id);
-  await saveCurrent();
-  await renderDraftPhotos(); render();
+  const previous=draftEquipment.photos;
+  draftEquipment.photos=previous.filter(x=>x.photoId!==id);
+  if(await saveCurrentWithPhotos({deletePhotoIds:[id]})){
+    await renderDraftPhotos(); render();
+  }else draftEquipment.photos=previous;
 }
 async function renderDraftPhotos(){
+  photoPreviewUrls.forEach(url=>URL.revokeObjectURL(url));
+  photoPreviewUrls=[];
   const html=[];
   for(const p of (draftEquipment?.photos||[])){
     const stored=await dbGetPhoto(p.photoId);
     let src="";
-    if(stored?.blob) src=URL.createObjectURL(stored.blob);
+    if(stored?.blob){ src=URL.createObjectURL(stored.blob); photoPreviewUrls.push(src); }
     else if(p.dataUrl) src=p.dataUrl; // legacy V2.1/V3 embedded photo fallback
     const kb=p.compressedBytes?Math.round(p.compressedBytes/1024):null;
     html.push(`<div class="photo-card">
@@ -521,19 +611,20 @@ function checkRequirement(req,equipment){
   if(req.measurement){
     return equipment.some(eq=>(eq.measurements||[]).some(m=>{
       const p=String(m.parameter||"").toLowerCase();
-      return req.measurement.some(term=>p.includes(term));
+      const hasValue=String(m.value??"").trim()!=="";
+      const hasUnit=!req.requireUnit||String(m.unit||"").trim()!=="";
+      return hasValue&&hasUnit&&req.measurement.some(term=>p.includes(term));
     }));
   }
   if(req.photo){
-    return equipment.some(eq=>(eq.photos||[]).some(p=>req.photo.includes(p.category)));
+    return equipment.some(eq=>(eq.photos||[]).some(p=>req.photo.includes(p.category)&&(Boolean(p.dataUrl)||availablePhotoIds.has(p.photoId))));
   }
   return false;
 }
 function evaluateTemplate(templateKey,recordIds=[]){
   const t=ECM_TEMPLATES[templateKey];
   if(!t) return {percent:0,required:[],recommended:[]};
-  let equipment=currentAudit.equipment||[];
-  if(recordIds.length) equipment=getEquipmentByRecordIds(recordIds);
+  const equipment=recordIds.length?getEquipmentByRecordIds(recordIds):[];
   const required=(t.required||[]).map(r=>({label:r.label,status:checkRequirement(r,equipment)?"Complete":"Missing"}));
   const recommended=(t.recommended||[]).map(r=>({label:r.label,status:checkRequirement(r,equipment)?"Complete":"Recommended"}));
   const complete=required.filter(x=>x.status==="Complete").length;
@@ -541,7 +632,7 @@ function evaluateTemplate(templateKey,recordIds=[]){
 }
 function evaluatePhotoCompleteness(eq){
   const rules=PHOTO_REQUIREMENTS[eq.systemType]||{required:[],recommended:[]};
-  const cats=(eq.photos||[]).map(p=>p.category);
+  const cats=(eq.photos||[]).filter(p=>Boolean(p.dataUrl)||availablePhotoIds.has(p.photoId)).map(p=>p.category);
   const required=rules.required.map(label=>({label,status:cats.includes(label)?"Complete":"Missing"}));
   const recommended=rules.recommended.map(label=>({label,status:cats.includes(label)?"Complete":"Recommended"}));
   const complete=required.filter(x=>x.status==="Complete").length;
@@ -550,12 +641,21 @@ function evaluatePhotoCompleteness(eq){
 function recalculateAllCompleteness(){
   if(!currentAudit) return;
   currentAudit.ecms.forEach(ecm=>{
+    const linked=getEquipmentByRecordIds(ecm.affectedEquipmentRecordIds||[]);
+    ecm.affectedEquipmentIds=linked.map(eq=>eq.equipmentId);
     if(ecm.templateKey){
       const result=evaluateTemplate(ecm.templateKey,ecm.affectedEquipmentRecordIds||[]);
       ecm.completenessPercent=result.percent;
       ecm.completenessItems=[...result.required,...result.recommended];
     }
   });
+}
+
+function nextEcmId(){
+  let n=1;
+  const existing=new Set(currentAudit.ecms.map(e=>e.ecmId));
+  while(existing.has(`ECM-${String(n).padStart(2,"0")}`)) n++;
+  return `ECM-${String(n).padStart(2,"0")}`;
 }
 
 function availableEquipmentOptions(selected=[]){
@@ -629,22 +729,29 @@ async function saveEcm(){
     implementationCost:null,simplePaybackYears:null,templateKey:$("ecm-template").value||null
   };
 
+  let rollback;
   if(editingEcmId){
     const e=currentAudit.ecms.find(x=>x.ecmId===editingEcmId);
+    const previous=structuredClone(e);
+    rollback=()=>Object.assign(e,previous);
     Object.assign(e,payload,{updatedAt:nowISO()});
   }else{
-    currentAudit.ecms.push({ecmId:`ECM-${String(currentAudit.ecms.length+1).padStart(2,"0")}`,...payload,createdAt:nowISO()});
+    const created={ecmId:nextEcmId(),...payload,createdAt:nowISO()};
+    currentAudit.ecms.push(created);
+    rollback=()=>{ currentAudit.ecms=currentAudit.ecms.filter(x=>x!==created); };
   }
   if(await saveCurrent()){
     $("ecm-dialog").close();
     editingEcmId=null;
     render();
-  }
+  }else rollback();
 }
 async function deleteEcm(id){
   if(!confirm("Delete this ECM?")) return;
+  const previous=currentAudit.ecms;
   currentAudit.ecms=currentAudit.ecms.filter(x=>x.ecmId!==id);
-  await saveCurrent(); render();
+  if(await saveCurrent()) render();
+  else currentAudit.ecms=previous;
 }
 
 function render(){
@@ -696,18 +803,43 @@ function render(){
     <div class="metric"><strong>${currentAudit.ecms.length}</strong><span>ECMs</span></div>`;
 }
 
+function collectIntegrityWarnings(){
+  const warnings=[];
+  const normalizedIds=currentAudit.equipment.map(eq=>String(eq.equipmentId||"").trim().toLowerCase()).filter(Boolean);
+  const duplicateIds=[...new Set(normalizedIds.filter((id,index)=>normalizedIds.indexOf(id)!==index))];
+  if(duplicateIds.length) warnings.push(`Duplicate equipment IDs: ${duplicateIds.join(", ")}`);
+  currentAudit.ecms.forEach(ecm=>{
+    const missing=(ecm.affectedEquipmentRecordIds||[]).filter(id=>!currentAudit.equipment.some(eq=>eq.recordId===id));
+    if(missing.length) warnings.push(`${ecm.ecmId}: ${missing.length} unresolved equipment relationship(s)`);
+  });
+  const missingPhotos=[];
+  currentAudit.equipment.forEach(eq=>(eq.photos||[]).forEach(photo=>{
+    if(!photo.dataUrl&&!availablePhotoIds.has(photo.photoId)) missingPhotos.push(photo.photoId);
+  }));
+  if(missingPhotos.length) warnings.push(`${missingPhotos.length} photo record(s) have no stored image blob`);
+  return {warnings,missingPhotoIds:missingPhotos};
+}
+
 async function exportAudit(){
   if(!await saveCurrent()) return;
   const safe=(currentAudit.site?.facilityName||"energy-audit").replace(/[^a-z0-9]+/gi,"_");
   const exportCopy=structuredClone(currentAudit);
-  // Legacy embedded photos remain in metadata if present; current photo blobs are not embedded in JSON.
+  const integrity=collectIntegrityWarnings();
+  exportCopy.exportIntegrity={
+    generatedAt:nowISO(),
+    photoBlobsIncluded:false,
+    warning:"This JSON contains photo metadata but does not include photos stored as IndexedDB blobs.",
+    warnings:integrity.warnings,
+    missingPhotoIds:integrity.missingPhotoIds
+  };
+  if(integrity.warnings.length&&!confirm(`Export integrity found ${integrity.warnings.length} warning(s). Export anyway?`)) return;
   const blob=new Blob([JSON.stringify(exportCopy,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
   a.href=url;
   a.download=`${safe}_${currentAudit.site?.auditDate||new Date().toISOString().slice(0,10)}.json`;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function deleteCurrentAudit(){
   if(!confirm("Delete this entire audit from this device? Export first if you need a backup.")) return;
@@ -763,3 +895,4 @@ $("copy-prompt-btn").onclick=copyPrompt;
 
 showDashboard();
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(console.error); }
+
