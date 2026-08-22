@@ -78,13 +78,19 @@ async function dbGetAllAudits(){
 async function dbDeleteAudit(id){
   const db = await openDB();
   return new Promise((resolve,reject)=>{
-    const tx=db.transaction([AUDIT_STORE,PHOTO_STORE],"readwrite");
+    const tx=db.transaction([AUDIT_STORE,PHOTO_STORE,MIGRATION_BACKUP_STORE],"readwrite");
     tx.objectStore(AUDIT_STORE).delete(id);
     const photoStore=tx.objectStore(PHOTO_STORE);
     const idx=photoStore.index("auditId");
     const range=IDBKeyRange.only(id);
     const cursorReq=idx.openCursor(range);
     cursorReq.onsuccess=e=>{
+      const cursor=e.target.result;
+      if(cursor){ cursor.delete(); cursor.continue(); }
+    };
+    const backupStore=tx.objectStore(MIGRATION_BACKUP_STORE);
+    const backupReq=backupStore.index("auditId").openCursor(IDBKeyRange.only(id));
+    backupReq.onsuccess=e=>{
       const cursor=e.target.result;
       if(cursor){ cursor.delete(); cursor.continue(); }
     };
@@ -96,10 +102,16 @@ async function dbCommitAuditAndPhotos(audit,{putPhotos=[],deletePhotoIds=[]}={})
   const db=await openDB();
   return new Promise((resolve,reject)=>{
     const tx=db.transaction([AUDIT_STORE,PHOTO_STORE],"readwrite");
-    tx.objectStore(AUDIT_STORE).put(audit);
-    const photoStore=tx.objectStore(PHOTO_STORE);
-    putPhotos.forEach(photo=>photoStore.put(photo));
-    deletePhotoIds.forEach(photoId=>photoStore.delete(photoId));
+    try{
+      tx.objectStore(AUDIT_STORE).put(audit);
+      const photoStore=tx.objectStore(PHOTO_STORE);
+      putPhotos.forEach(photo=>photoStore.put(photo));
+      deletePhotoIds.forEach(photoId=>photoStore.delete(photoId));
+    }catch(error){
+      tx.abort();
+      reject(error);
+      return;
+    }
     completeTransaction(tx,resolve,reject,audit);
   });
 }
@@ -119,6 +131,19 @@ async function dbBackupAudit(audit,reason="schema-migration"){
     tx.objectStore(MIGRATION_BACKUP_STORE).put(backup);
     completeTransaction(tx,resolve,reject,backup);
   });
+}
+
+async function dbGetMigrationBackupsForAudit(auditId){
+  const db=await openDB();
+  return new Promise((resolve,reject)=>{
+    const req=db.transaction(MIGRATION_BACKUP_STORE).objectStore(MIGRATION_BACKUP_STORE).index("auditId").getAll(auditId);
+    req.onsuccess=()=>resolve((req.result||[]).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))));
+    req.onerror=()=>reject(req.error);
+  });
+}
+
+async function dbGetLatestMigrationBackup(auditId){
+  return (await dbGetMigrationBackupsForAudit(auditId))[0]||null;
 }
 
 async function dbPutPhoto(photo){
