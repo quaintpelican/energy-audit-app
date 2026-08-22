@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Field Energy Audit</title>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>Field Energy Audit</h1>
+      <p id="header-status">V2 • Offline-first</p>
+    </div>
+    <button class="secondary" id="home-btn">Audits</button>
+  </header>
+
+  <main>
+    <section id="dashboard-view">
+      <div class="hero card">
+        <div>
+          <h2>Audit Dashboard</h2>
+          <p class="muted">Audits are saved locally on this device and can be exported anytime.</p>
+        </div>
+        <button id="new-audit-btn">+ New Audit</button>
+      </div>
+      <div id="audit-list" class="list"></div>
+    </section>
+
+    <section id="audit-view" class="hidden">
+      <div class="card audit-head">
+        <div>
+          <h2 id="audit-title">Untitled Audit</h2>
+          <p id="save-status" class="save-status">Saved locally</p>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="export-btn">Export JSON</button>
+          <button class="secondary" id="delete-audit-btn">Delete</button>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="section-title">
+          <h2>1. Site</h2><span class="pill">Autosaves</span>
+        </div>
+        <div class="grid">
+          <label>Facility Name<input data-site="facilityName" placeholder="Example Hotel" /></label>
+          <label>Address<input data-site="address" placeholder="123 Main St" /></label>
+          <label>Facility Type
+            <select data-site="facilityType">
+              <option value="">Select...</option>
+              <option>Office</option><option>Hotel</option><option>Retail</option>
+              <option>Restaurant</option><option>Grocery</option><option>School</option>
+              <option>Warehouse</option><option>Healthcare</option><option>Industrial</option><option>Other</option>
+            </select>
+          </label>
+          <label>Conditioned Area (ft²)<input data-site="area" type="number" inputmode="decimal" /></label>
+          <label>Operating Hours / Week<input data-site="hoursWeek" type="number" inputmode="decimal" /></label>
+          <label>Audit Date<input data-site="auditDate" type="date" /></label>
+        </div>
+        <label>General Site Notes<textarea data-site="siteNotes" rows="3"></textarea></label>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h2>2. Equipment</h2><span id="equipment-count" class="pill">0</span>
+        </div>
+        <div class="tabs">
+          <button class="tab active" data-type="HVAC">HVAC</button>
+          <button class="tab" data-type="Lighting">Lighting</button>
+          <button class="tab" data-type="DHW">DHW</button>
+        </div>
+        <div id="equipment-list" class="list"></div>
+        <button id="add-equipment-btn">+ Add HVAC Equipment</button>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h2>3. ECM Opportunities</h2><span id="ecm-count" class="pill">0</span>
+        </div>
+        <div id="ecm-list" class="list"></div>
+        <button id="add-ecm-btn">+ Add ECM</button>
+      </section>
+
+      <section class="card">
+        <h2>4. Audit Review</h2>
+        <div id="review-summary" class="review-grid"></div>
+        <div class="actions">
+          <button id="copy-prompt-btn">Copy AI Analysis Prompt</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="equipment-dialog">
+    <div class="dialog-head"><h3 id="equipment-dialog-title">Add Equipment</h3><button class="secondary icon" id="close-equipment">✕</button></div>
+    <input type="hidden" id="equipment-record-id" />
+    <div id="equipment-fields" class="grid"></div>
+    <label>Field Notes<textarea id="equipmentNotes" rows="3"></textarea></label>
+    <label>Potential ECM Flags<input id="equipmentFlags" placeholder="VFD, schedule reduction, replacement..." /></label>
+
+    <div class="subsection">
+      <div class="section-title"><h3>Measurements</h3><button class="secondary small" id="add-measurement-btn">+ Measurement</button></div>
+      <div id="measurement-list" class="list compact"></div>
+    </div>
+
+    <div class="subsection">
+      <div class="section-title"><h3>Photos</h3><span class="pill">Stored on device</span></div>
+      <label class="photo-button">+ Add Photo<input id="photo-input" type="file" accept="image/*" capture="environment" hidden /></label>
+      <div id="photo-list" class="photo-grid"></div>
+    </div>
+
+    <div class="actions sticky-actions">
+      <button class="secondary" id="cancel-equipment">Cancel</button>
+      <button id="save-equipment">Save Equipment</button>
+    </div>
+  </dialog>
+
+  <dialog id="measurement-dialog">
+    <div class="dialog-head"><h3>Add Measurement</h3><button class="secondary icon" id="close-measurement">✕</button></div>
+    <div class="grid">
+      <label>Parameter<input id="mParameter" placeholder="Supply air temperature" /></label>
+      <label>Value<input id="mValue" inputmode="decimal" placeholder="55.2" /></label>
+      <label>Unit<input id="mUnit" placeholder="°F, A, V, kW, in. w.c." /></label>
+      <label>Source
+        <select id="mSource">
+          <option>Measured</option>
+          <option>Nameplate</option>
+          <option>Estimated</option>
+          <option>Assumed</option>
+          <option>Calculated</option>
+        </select>
+      </label>
+      <label>Instrument / Method<input id="mMethod" placeholder="Fluke clamp meter, BAS trend..." /></label>
+      <label>Notes<input id="mNotes" /></label>
+    </div>
+    <div class="actions">
+      <button class="secondary" id="cancel-measurement">Cancel</button>
+      <button id="save-measurement">Save Measurement</button>
+    </div>
+  </dialog>
+
+  <dialog id="ecm-dialog">
+    <div class="dialog-head"><h3>Add ECM</h3><button class="secondary icon" id="close-ecm">✕</button></div>
+    <label>ECM Title<input id="ecmTitle" /></label>
+    <label>Category<select id="ecmCategory"><option>HVAC</option><option>Lighting</option><option>DHW</option><option>Controls</option><option>Envelope</option><option>Other</option></select></label>
+    <label>Affected Equipment IDs<input id="ecmEquipment" placeholder="AHU-1, AHU-2" /></label>
+    <label>Existing Condition<textarea id="ecmExisting" rows="2"></textarea></label>
+    <label>Proposed Improvement<textarea id="ecmProposed" rows="2"></textarea></label>
+    <label>Data Still Needed<textarea id="ecmMissing" rows="2"></textarea></label>
+    <label>Confidence<select id="ecmConfidence"><option>High</option><option selected>Medium</option><option>Low</option></select></label>
+    <div class="actions">
+      <button class="secondary" id="cancel-ecm">Cancel</button>
+      <button id="save-ecm">Save ECM</button>
+    </div>
+  </dialog>
+
+  <script src="db.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
