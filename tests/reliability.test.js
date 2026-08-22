@@ -53,6 +53,22 @@ test("legacy migration resolves only unique equipment display IDs",()=>{
   assert.equal(result.warnings.length,2);
 });
 
+test("normalizes already-schema3 ambiguous relationships from the production migrator",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`migrateAudit({
+    auditId:"a",schemaVersion:3,site:{},metadata:{},calculations:[],
+    equipment:[
+      {recordId:"eq-1",equipmentId:"RTU-01",measurements:[],photos:[],status:"complete"},
+      {recordId:"eq-2",equipmentId:"RTU-01",measurements:[],photos:[],status:"complete"}
+    ],
+    ecms:[{ecmId:"ECM-01",affectedEquipmentIds:["RTU-01"],affectedEquipmentRecordIds:["eq-1"]}]
+  })`,context);
+  assert.equal(result.changed,true);
+  assert.deepEqual([...result.audit.ecms[0].affectedEquipmentRecordIds],["eq-1"]);
+  assert.deepEqual([...result.audit.ecms[0].unresolvedEquipmentReferences[0].candidateRecordIds],["eq-1","eq-2"]);
+  assert.match(result.audit.metadata.migrationWarnings[0],/unresolved equipment ID RTU-01/);
+});
+
 test("template completeness does not borrow evidence from unrelated equipment",()=>{
   const context=loadApp();
   const result=vm.runInContext(`
