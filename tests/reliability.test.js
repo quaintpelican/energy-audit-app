@@ -7,10 +7,11 @@ const {webcrypto} = require("node:crypto");
 
 function loadApp(){
   const elements=new Map();
+  const createdBlobs=[];
   const makeElement=()=>({
     value:"",textContent:"",innerHTML:"",className:"",style:{},dataset:{},tagName:"DIV",
     selectedOptions:[],classList:{add(){},remove(){},toggle(){}},
-    addEventListener(){},showModal(){},close(){},setCustomValidity(){},reportValidity(){},checkValidity(){return true;}
+    addEventListener(){},showModal(){},close(){},click(){},setCustomValidity(){},reportValidity(){},checkValidity(){return true;}
   });
   const document={
     hidden:false,
@@ -22,11 +23,13 @@ function loadApp(){
   const context=vm.createContext({
     console,document,window:{addEventListener(){}},navigator:{},crypto:webcrypto,
     structuredClone,Date,Set,Map,Math,Number,String,Boolean,Array,Object,JSON,
-    Promise,Error,Blob,URL,setTimeout,clearTimeout,alert(){},confirm(){return true;},
+    Promise,Error,Blob,URL:{createObjectURL(blob){createdBlobs.push(blob);return `blob:test-${createdBlobs.length}`;},revokeObjectURL(){}},setTimeout,clearTimeout,alert(){},confirm(){return true;},
     dbGetAllAudits:async()=>[],dbGetAudit:async()=>null,dbPutAudit:async a=>a,
     dbBackupAudit:async()=>{},dbGetPhotosForAudit:async()=>[],dbCommitAuditAndPhotos:async a=>a,
-    dbDeleteAudit:async()=>{},dbGetPhoto:async()=>null
+    dbDeleteAudit:async()=>{},dbGetPhoto:async()=>null,dbGetLatestMigrationBackup:async()=>null
   });
+  context.__elements=elements;
+  context.__createdBlobs=createdBlobs;
   const source=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
   vm.runInContext(source,context,{filename:"app.js"});
   return context;
@@ -46,6 +49,7 @@ test("legacy migration resolves only unique equipment display IDs",()=>{
   })`,context);
   assert.equal(result.changed,true);
   assert.equal(result.audit.ecms[0].affectedEquipmentRecordIds.length,1);
+  assert.equal(result.audit.ecms[0].unresolvedEquipmentReferences.length,2);
   assert.equal(result.warnings.length,2);
 });
 
@@ -193,5 +197,124 @@ test("completeness recalculates after current equipment data changes",()=>{
     [before,currentAudit.ecms[0].completenessPercent]
   `,context);
   assert.deepEqual([...percents],[75,100]);
+});
+
+test("unresolved legacy relationships survive save, reload, recalculate, export, and deletion attempt",async()=>{
+  const context=loadApp();
+  let persisted;
+  context.dbPutAudit=async audit=>{ persisted=structuredClone(audit); return audit; };
+  const alerts=[];
+  context.alert=message=>alerts.push(message);
+  await vm.runInContext(`(async()=>{
+    const migration=migrateAudit({auditId:"audit-1",schemaVersion:"2.0",site:{},metadata:{},calculations:[],
+      equipment:[
+        {equipmentId:"RTU-01",measurements:[],photos:[]},
+        {equipmentId:"RTU-01",measurements:[],photos:[]}
+      ],
+      ecms:[{ecmId:"ECM-01",affectedEquipmentIds:["RTU-01"]}]
+    });
+    currentAudit=migration.audit;
+    recalculateAllCompleteness();
+    await saveCurrent();
+  })()`,context);
+  // Reload the actual captured persisted snapshot into the app context.
+  context.globalPersisted=persisted;
+  await vm.runInContext(`(async()=>{
+    currentAudit=structuredClone(globalPersisted);
+    availablePhotoIds=new Set();
+    currentAudit.equipment[0].equipmentId="RENAMED-01";
+    recalculateAllCompleteness();
+    await exportAudit();
+    await deleteEquipment(currentAudit.equipment[0].recordId);
+  })()`,context);
+  const exported=JSON.parse(await context.__createdBlobs.at(-1).text());
+  assert.equal(exported.ecms[0].unresolvedEquipmentReferences[0].displayId,"RTU-01");
+  assert.deepEqual(exported.ecms[0].affectedEquipmentIds,["RTU-01"]);
+  assert.equal(persisted.metadata.migrationWarnings.length,1);
+  assert.equal(vm.runInContext("currentAudit.equipment.length",context),2);
+  assert.match(alerts.at(-1),/linked to 1 ECM/);
+});
+
+test("ECM editing preserves economic, engineering, and unknown fields",async()=>{
+  const context=loadApp();
+  context.dbPutAudit=async audit=>audit;
+  const result=await vm.runInContext(`(async()=>{
+    currentAudit={auditId:"audit-1",site:{},equipment:[{recordId:"eq-1",equipmentId:"AHU-01"}],metadata:{},calculations:[],
+      ecms:[{ecmId:"ECM-01",title:"Old",category:"HVAC",affectedEquipmentRecordIds:["eq-1"],affectedEquipmentIds:["AHU-01"],
+        existingCondition:"Old condition",proposedImprovement:"Old proposal",missingData:"",confidence:"Medium",templateKey:null,
+        savings:{electricKwh:1200,cost:400,method:"metered"},implementationCost:2000,simplePaybackYears:5,
+        methodology:"CALC-X",assumptions:["A"],calculationIds:["CALC-01"],risks:["R"],futureField:{preserve:true}}]};
+    editingEcmId="ECM-01";
+    $("ecmTitle").value="Updated";
+    $("ecmCategory").value="HVAC";
+    $("ecmExisting").value="Updated condition";
+    $("ecmProposed").value="Updated proposal";
+    $("ecmMissing").value="None";
+    $("ecmConfidence").value="High";
+    $("ecm-template").value="";
+    $("ecmEquipment").tagName="SELECT";
+    $("ecmEquipment").selectedOptions=[{value:"eq-1"}];
+    await saveEcm();
+    return currentAudit.ecms[0];
+  })()`,context);
+  assert.equal(result.title,"Updated");
+  assert.equal(result.savings.electricKwh,1200);
+  assert.equal(result.implementationCost,2000);
+  assert.equal(result.simplePaybackYears,5);
+  assert.equal(result.methodology,"CALC-X");
+  assert.deepEqual([...result.assumptions],["A"]);
+  assert.deepEqual([...result.calculationIds],["CALC-01"]);
+  assert.deepEqual([...result.risks],["R"]);
+  assert.equal(result.futureField.preserve,true);
+});
+
+test("failed equipment creation rolls back and cannot leak into a later save",async()=>{
+  const context=loadApp();
+  const persisted=[];
+  let fail=true;
+  context.dbPutAudit=async audit=>{
+    if(fail){ fail=false; throw new Error("quota"); }
+    persisted.push(structuredClone(audit));
+    return audit;
+  };
+  const alerts=[];
+  context.alert=message=>alerts.push(message);
+  await vm.runInContext(`(async()=>{
+    currentAudit={auditId:"audit-1",schemaVersion:3,site:{},utility:{months:[]},equipment:[],ecms:[],calculations:[],metadata:{}};
+    await openNewEquipment();
+    currentAudit.site.facilityName="Later save";
+    await saveCurrent();
+  })()`,context);
+  assert.equal(vm.runInContext("currentAudit.equipment.length",context),0);
+  assert.equal(persisted.at(-1).equipment.length,0);
+  assert.match(alerts.at(-1),/No equipment record was retained/);
+});
+
+test("overlapping saves serialize and persist the newest snapshot last",async()=>{
+  const context=loadApp();
+  const completed=[];
+  context.dbPutAudit=async audit=>{
+    await new Promise(resolve=>setTimeout(resolve,audit.site.facilityName==="First"?20:0));
+    completed.push(audit.site.facilityName);
+    return audit;
+  };
+  await vm.runInContext(`(async()=>{
+    currentAudit={auditId:"audit-1",schemaVersion:3,site:{facilityName:"First"},equipment:[],ecms:[],metadata:{}};
+    const first=saveCurrent();
+    currentAudit.site.facilityName="Second";
+    const second=saveCurrent();
+    await Promise.all([first,second]);
+  })()`,context);
+  assert.deepEqual(completed,["First","Second"]);
+});
+
+test("failed destructive persistence restores deleted equipment",async()=>{
+  const context=loadApp();
+  context.dbCommitAuditAndPhotos=async()=>{ throw new Error("transaction failed"); };
+  await vm.runInContext(`(async()=>{
+    currentAudit={auditId:"audit-1",schemaVersion:3,site:{},equipment:[{recordId:"eq-1",equipmentId:"RTU-01",photos:[]}],ecms:[],metadata:{}};
+    await deleteEquipment("eq-1");
+  })()`,context);
+  assert.equal(vm.runInContext("currentAudit.equipment.length",context),1);
 });
 
