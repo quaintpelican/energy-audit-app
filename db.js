@@ -1,11 +1,16 @@
 const DB_NAME = "FieldEnergyAuditDB";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const AUDIT_STORE = "audits";
 const PHOTO_STORE = "photos";
+const MIGRATION_BACKUP_STORE = "migrationBackups";
+
+let dbPromise = null;
 
 function openDB(){
-  return new Promise((resolve,reject)=>{
+  if(dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, DB_VERSION);
+    let blocked=false;
     req.onupgradeneeded = () => {
       const db = req.result;
       if(!db.objectStoreNames.contains(AUDIT_STORE)){
@@ -17,19 +22,41 @@ function openDB(){
         store.createIndex("auditId","auditId");
         store.createIndex("equipmentRecordId","equipmentRecordId");
       }
+      if(!db.objectStoreNames.contains(MIGRATION_BACKUP_STORE)){
+        const store = db.createObjectStore(MIGRATION_BACKUP_STORE,{keyPath:"backupId"});
+        store.createIndex("auditId","auditId");
+        store.createIndex("createdAt","createdAt");
+      }
     };
-    req.onsuccess = ()=>resolve(req.result);
-    req.onerror = ()=>reject(req.error);
+    req.onblocked = ()=>{
+      blocked=true;
+      dbPromise=null;
+      reject(new Error("Database upgrade blocked. Close other Audist tabs and reopen the app."));
+    };
+    req.onsuccess = ()=>{
+      const db=req.result;
+      if(blocked){ db.close(); return; }
+      db.onversionchange=()=>{ db.close(); dbPromise=null; };
+      resolve(db);
+    };
+    req.onerror = ()=>{ dbPromise=null; reject(req.error); };
   });
+  return dbPromise;
+}
+
+function completeTransaction(tx,resolve,reject,result){
+  tx.oncomplete=()=>resolve(result);
+  tx.onerror=()=>reject(tx.error||new Error("IndexedDB transaction failed"));
+  tx.onabort=()=>reject(tx.error||new Error("IndexedDB transaction aborted"));
 }
 
 async function dbPutAudit(audit){
   const db = await openDB();
   return new Promise((resolve,reject)=>{
     const tx=db.transaction(AUDIT_STORE,"readwrite");
-    tx.objectStore(AUDIT_STORE).put(audit);
-    tx.oncomplete=()=>resolve(audit);
-    tx.onerror=()=>reject(tx.error);
+    const req=tx.objectStore(AUDIT_STORE).put(audit);
+    req.onerror=()=>reject(req.error);
+    completeTransaction(tx,resolve,reject,audit);
   });
 }
 async function dbGetAudit(id){
@@ -61,8 +88,36 @@ async function dbDeleteAudit(id){
       const cursor=e.target.result;
       if(cursor){ cursor.delete(); cursor.continue(); }
     };
-    tx.oncomplete=()=>resolve();
-    tx.onerror=()=>reject(tx.error);
+    completeTransaction(tx,resolve,reject);
+  });
+}
+
+async function dbCommitAuditAndPhotos(audit,{putPhotos=[],deletePhotoIds=[]}={}){
+  const db=await openDB();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction([AUDIT_STORE,PHOTO_STORE],"readwrite");
+    tx.objectStore(AUDIT_STORE).put(audit);
+    const photoStore=tx.objectStore(PHOTO_STORE);
+    putPhotos.forEach(photo=>photoStore.put(photo));
+    deletePhotoIds.forEach(photoId=>photoStore.delete(photoId));
+    completeTransaction(tx,resolve,reject,audit);
+  });
+}
+
+async function dbBackupAudit(audit,reason="schema-migration"){
+  const db=await openDB();
+  const backup={
+    backupId:`${audit.auditId}:${Date.now()}:${crypto.randomUUID()}`,
+    auditId:audit.auditId,
+    createdAt:new Date().toISOString(),
+    reason,
+    schemaVersion:audit.schemaVersion??null,
+    audit:structuredClone(audit)
+  };
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(MIGRATION_BACKUP_STORE,"readwrite");
+    tx.objectStore(MIGRATION_BACKUP_STORE).put(backup);
+    completeTransaction(tx,resolve,reject,backup);
   });
 }
 
@@ -71,8 +126,7 @@ async function dbPutPhoto(photo){
   return new Promise((resolve,reject)=>{
     const tx=db.transaction(PHOTO_STORE,"readwrite");
     tx.objectStore(PHOTO_STORE).put(photo);
-    tx.oncomplete=()=>resolve(photo);
-    tx.onerror=()=>reject(tx.error);
+    completeTransaction(tx,resolve,reject,photo);
   });
 }
 async function dbGetPhoto(photoId){
@@ -88,8 +142,7 @@ async function dbDeletePhoto(photoId){
   return new Promise((resolve,reject)=>{
     const tx=db.transaction(PHOTO_STORE,"readwrite");
     tx.objectStore(PHOTO_STORE).delete(photoId);
-    tx.oncomplete=()=>resolve();
-    tx.onerror=()=>reject(tx.error);
+    completeTransaction(tx,resolve,reject);
   });
 }
 async function dbGetPhotosForEquipment(equipmentRecordId){
@@ -101,8 +154,18 @@ async function dbGetPhotosForEquipment(equipmentRecordId){
   });
 }
 
+async function dbGetPhotosForAudit(auditId){
+  const db=await openDB();
+  return new Promise((resolve,reject)=>{
+    const req=db.transaction(PHOTO_STORE).objectStore(PHOTO_STORE).index("auditId").getAll(auditId);
+    req.onsuccess=()=>resolve(req.result||[]);
+    req.onerror=()=>reject(req.error);
+  });
+}
+
 // Backward-compatible aliases used by older code paths if needed.
 const dbPut = dbPutAudit;
 const dbGet = dbGetAudit;
 const dbGetAll = dbGetAllAudits;
 const dbDelete = dbDeleteAudit;
+

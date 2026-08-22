@@ -5,6 +5,19 @@ Offline-first iPhone energy-auditing PWA supporting structured ASHRAE Level 2 fi
 ## V3.1 focus
 Data safety, migration control, referential integrity, and dynamic completeness.
 
+## Reliability patch
+- Audit/photo additions and deletions commit atomically across IndexedDB stores.
+- Database upgrades retain recoverable pre-migration audit copies.
+- Audits from unsupported future schema versions are refused rather than overwritten.
+- Ambiguous legacy equipment relationships are preserved as migration warnings.
+- Saves are serialized and destructive UI changes roll back when persistence fails.
+- Duplicate equipment IDs are blocked before persistence.
+- ECM completeness requires selected equipment and usable measurement/photo evidence.
+- ECM display relationships refresh from stable record IDs.
+- ECM IDs remain unique after deletions.
+- JSON exports include integrity diagnostics and explicitly disclose that photo blobs are excluded.
+- Service-worker updates no longer take control of an already-open page immediately.
+
 ## Major changes
 - True equipment autosave: new equipment is persisted immediately.
 - Measurements persist immediately.
@@ -35,6 +48,7 @@ Legacy V2.1/V3 photos embedded as `dataUrl` remain readable. New photos use the 
 - Canonical measurement parameter IDs and unit validation are not yet implemented.
 - Engineering calculation engine is not yet implemented.
 - Cloud backup/sync is not yet implemented.
+- The JSON export is not a complete photo backup; retain original field photos until a portable photo-package export is implemented.
 
 ## Deployment
 Replace the repository root files with this release and commit to GitHub. Open the GitHub Pages URL in Safari once after deployment to allow the new Service Worker and IndexedDB schema to activate.
@@ -50,3 +64,4 @@ Replace the repository root files with this release and commit to GitHub. Open t
 8. Add missing ECM data and verify completeness updates.
 9. Attempt to delete equipment linked to an ECM and confirm deletion is blocked.
 10. Export JSON and confirm the audit dataset is readable.
+

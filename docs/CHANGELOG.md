@@ -1,5 +1,31 @@
 # Audist — Changelog
 
+## V3.1
+### Added/fixed
+- Immediate persistence of new equipment and measurements.
+- Dedicated IndexedDB Blob storage for new photos.
+- Atomic audit/photo addition and deletion transactions.
+- Explicit application, audit-schema, and IndexedDB versions.
+- Recoverable pre-migration audit backups.
+- Refusal to overwrite unsupported future-schema audits.
+- Stable equipment `recordId` relationships for ECMs.
+- Duplicate equipment-ID prevention before persistence.
+- Editable ECMs and dynamic completeness recalculation.
+- Required vs recommended completeness items and photo rules.
+- Integrity diagnostics in JSON export.
+- Safer service-worker activation behavior.
+
+### Known limitations
+- Legacy embedded photos are not converted to Blob records.
+- JSON export includes photo metadata but not current photo Blobs.
+- Canonical measurement parameter IDs and unit conversion are not implemented.
+- Engineering calculations and cloud backup remain future work.
+
+### Verification
+- JavaScript syntax checks for `app.js`, `db.js`, and `sw.js`.
+- Automated regression tests for schema refusal, migration relationship resolution, completeness evidence, photo availability, and ECM ID generation.
+- Manual iPhone/offline/migration procedure remains required before production field use.
+
 ## V3
 ### Added
 - Utility-rate fields.
