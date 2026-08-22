@@ -1,0 +1,26 @@
+# Audist Documentation Index
+
+## Purpose
+This folder is the product and engineering knowledge base for Audist, an offline-first iPhone energy-auditing PWA supporting high-quality ASHRAE Level 2 audits.
+
+## Authority
+Use documents in this order when decisions conflict:
+
+1. **PROJECT_SPEC.md** — product principles, architecture, non-negotiable requirements.
+2. **DATA_SCHEMA.md** — canonical data structures, IDs, provenance, relationships, migrations.
+3. **ECM_LIBRARY.md** — ECM requirements, field-data completeness rules, applicability.
+4. **CALCULATION_LIBRARY.md** — approved deterministic engineering calculation methods.
+5. **ROADMAP.md** — priorities and planned sequencing; not proof of implementation.
+6. **CHANGELOG.md** — what was actually implemented in each release.
+
+## Important distinction
+A requirement in the specification or roadmap is not necessarily implemented. The CHANGELOG and delivered code determine current functionality.
+
+## Source of truth
+- GitHub repository: application code and version history.
+- ChatGPT Project: product/design/engineering collaboration and reference documents.
+- iPhone IndexedDB: active local audit data.
+- Exported audit packages: portable project records and AI-analysis inputs.
+
+Never place customer audit data, utility data, or facility photos in a public source-code repository.
+
