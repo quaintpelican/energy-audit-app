@@ -30,7 +30,7 @@ const schemas = {
 function blankAudit(){
   return {
     schemaVersion:"2.0", auditId:uid(), createdAt:nowISO(), updatedAt:nowISO(),
-    status:"Draft", site:{auditDate:new Date().toISOString().slice(0,10)}, equipment:[], ecms:[],
+    status:"Draft", site:{auditDate:new Date().toISOString().slice(0,10)}, utility:{electricRate:"",demandRate:"",gasRate:"",notes:"",months:[]}, equipment:[], ecms:[],
     metadata:{app:"Field Energy Audit", storage:"IndexedDB", intendedStandard:"ASHRAE Level 2 support"}
   };
 }
@@ -65,11 +65,48 @@ async function openAudit(id){
   $("audit-view").classList.remove("hidden");
   $("home-btn").style.visibility="visible";
   populateSite();
+  populateUtility();
   render();
 }
 function populateSite(){
   document.querySelectorAll("[data-site]").forEach(el=>el.value=currentAudit.site?.[el.dataset.site] || "");
 }
+
+function populateUtility(){
+  const u=currentAudit.utility || {months:[]};
+  $("electric-rate").value=u.electricRate||"";
+  $("demand-rate").value=u.demandRate||"";
+  $("gas-rate").value=u.gasRate||"";
+  $("utility-notes").value=u.notes||"";
+}
+function utilityHeaderChanged(){
+  currentAudit.utility=currentAudit.utility||{months:[]};
+  currentAudit.utility.electricRate=$("electric-rate").value;
+  currentAudit.utility.demandRate=$("demand-rate").value;
+  currentAudit.utility.gasRate=$("gas-rate").value;
+  currentAudit.utility.notes=$("utility-notes").value;
+  queueSave();
+}
+function openUtility(){
+  ["uMonth","uKwh","uKw","uElectricCost","uTherms","uGasCost","uNotes"].forEach(id=>$(id).value="");
+  $("utility-dialog").showModal();
+}
+async function saveUtilityMonth(){
+  if(!$("uMonth").value){ alert("Month is required."); return; }
+  currentAudit.utility=currentAudit.utility||{months:[]};
+  currentAudit.utility.months=currentAudit.utility.months||[];
+  currentAudit.utility.months.push({
+    utilityMonthId:uid(),month:$("uMonth").value,kwh:$("uKwh").value,kw:$("uKw").value,
+    electricCost:$("uElectricCost").value,therms:$("uTherms").value,gasCost:$("uGasCost").value,
+    notes:$("uNotes").value
+  });
+  await saveCurrent(); $("utility-dialog").close(); render();
+}
+async function deleteUtilityMonth(id){
+  currentAudit.utility.months=currentAudit.utility.months.filter(x=>x.utilityMonthId!==id);
+  await saveCurrent(); render();
+}
+
 function markPending(){
   $("save-status").textContent="Saving locally…";
   $("save-status").className="save-status pending";
@@ -99,6 +136,110 @@ function siteInputChanged(e){
   currentAudit.site[e.target.dataset.site]=e.target.value;
   if(e.target.dataset.site==="facilityName") $("audit-title").textContent=e.target.value || "Untitled Audit";
   queueSave();
+}
+
+
+const ECM_TEMPLATES = {
+  hvac_vfd:{
+    title:"Install VFD on Supply Fan",category:"HVAC",
+    existing:"Constant-speed supply fan operation.",
+    proposed:"Install VFD and modulate fan speed based on system demand / static pressure reset.",
+    required:[
+      {label:"Motor HP",keys:["fanHp"]},
+      {label:"Operating Schedule",keys:["schedule"]},
+      {label:"Existing Control Method",keys:["controls"]},
+      {label:"Fan Load / Speed Profile",measurement:["speed","hz","fan load","airflow"]},
+      {label:"Static Pressure",measurement:["static pressure","in. w.c."]}
+    ]
+  },
+  hvac_schedule:{
+    title:"Optimize HVAC Operating Schedule",category:"HVAC",
+    existing:"HVAC operates beyond confirmed occupancy requirements.",
+    proposed:"Reduce runtime to align with occupancy, warm-up, and setback requirements.",
+    required:[
+      {label:"Existing Schedule",keys:["schedule"]},
+      {label:"Occupancy Schedule",site:["hoursWeek"]},
+      {label:"Equipment Capacity / Type",keys:["capacity","equipmentSubtype"]}
+    ]
+  },
+  hvac_economizer:{
+    title:"Repair / Optimize Economizer",category:"HVAC",
+    existing:"Economizer operation is absent, disabled, or not functioning as intended.",
+    proposed:"Repair or optimize outside-air economizer controls and sequence.",
+    required:[
+      {label:"Controls / Sequence",keys:["controls"]},
+      {label:"Outdoor Air Temp",measurement:["outdoor","outside air","osa"]},
+      {label:"Return Air Temp",measurement:["return air"]},
+      {label:"Supply Air Temp",measurement:["supply air"]}
+    ]
+  },
+  lighting_led:{
+    title:"LED Lighting Retrofit",category:"Lighting",
+    existing:"Existing non-LED lighting remains in service.",
+    proposed:"Replace existing fixtures/lamps with LED equivalents while maintaining required illumination.",
+    required:[
+      {label:"Fixture Quantity",keys:["quantity"]},
+      {label:"Existing Watts",keys:["existingWatts"]},
+      {label:"Annual Operating Hours",keys:["hoursAnnual"]},
+      {label:"Fixture / Lamp Type",keys:["equipmentSubtype","lampType"]}
+    ]
+  },
+  lighting_controls:{
+    title:"Add / Optimize Lighting Controls",category:"Lighting",
+    existing:"Lighting is controlled manually or remains energized during unoccupied periods.",
+    proposed:"Add occupancy, scheduling, or daylight controls appropriate to the space.",
+    required:[
+      {label:"Existing Controls",keys:["controls"]},
+      {label:"Annual Operating Hours",keys:["hoursAnnual"]},
+      {label:"Fixture Quantity",keys:["quantity"]},
+      {label:"Existing Watts",keys:["existingWatts"]}
+    ]
+  },
+  dhw_hpwh:{
+    title:"Replace Existing Water Heater with HPWH",category:"DHW",
+    existing:"Existing water heating is provided by non-heat-pump equipment.",
+    proposed:"Replace with appropriately sized heat pump water heating system.",
+    required:[
+      {label:"Fuel Type",keys:["fuel"]},
+      {label:"Input Capacity",keys:["input"]},
+      {label:"Storage Volume",keys:["storage"]},
+      {label:"Efficiency / UEF",keys:["efficiency"]},
+      {label:"Operating Schedule",keys:["schedule"]}
+    ]
+  },
+  dhw_tankless:{
+    title:"Replace Storage Water Heater with Tankless",category:"DHW",
+    existing:"Existing storage water heating equipment remains in service.",
+    proposed:"Replace with appropriately sized condensing tankless water heating system.",
+    required:[
+      {label:"Fuel Type",keys:["fuel"]},
+      {label:"Input Capacity",keys:["input"]},
+      {label:"Storage Volume",keys:["storage"]},
+      {label:"Efficiency / UEF",keys:["efficiency"]},
+      {label:"Recirculation Configuration",keys:["recirc"]}
+    ]
+  }
+};
+
+function checkRequirement(req, equipment){
+  if(req.site) return req.site.some(k=>String(currentAudit.site?.[k]||"").trim());
+  if(req.keys) return equipment.some(eq=>req.keys.some(k=>String(eq[k]||"").trim()));
+  if(req.measurement){
+    return equipment.some(eq=>(eq.measurements||[]).some(m=>{
+      const p=String(m.parameter||"").toLowerCase();
+      return req.measurement.some(term=>p.includes(term));
+    }));
+  }
+  return false;
+}
+function evaluateTemplate(templateKey, affectedIds=[]){
+  const t=ECM_TEMPLATES[templateKey];
+  if(!t) return {percent:0,items:[]};
+  let eq=currentAudit.equipment||[];
+  if(affectedIds.length) eq=eq.filter(x=>affectedIds.includes(x.equipmentId));
+  const items=t.required.map(r=>({label:r.label,ok:checkRequirement(r,eq)}));
+  const complete=items.filter(x=>x.ok).length;
+  return {percent:Math.round((complete/items.length)*100),items};
 }
 
 function renderEquipmentFields(type, values={}){
@@ -253,7 +394,22 @@ function renderDraftPhotos(){
 
 function openEcm(){
   ["ecmTitle","ecmEquipment","ecmExisting","ecmProposed","ecmMissing"].forEach(id=>$(id).value="");
-  $("ecmCategory").value="HVAC"; $("ecmConfidence").value="Medium"; $("ecm-dialog").showModal();
+  $("ecmCategory").value="HVAC"; $("ecmConfidence").value="Medium";
+  const key=$("ecm-template").value;
+  const t=ECM_TEMPLATES[key];
+  if(t){
+    $("ecmTitle").value=t.title;
+    $("ecmCategory").value=t.category;
+    $("ecmExisting").value=t.existing;
+    $("ecmProposed").value=t.proposed;
+    const evald=evaluateTemplate(key,[]);
+    $("ecm-template-info").classList.remove("hidden");
+    $("ecm-template-info").innerHTML=`<strong>Template data requirements</strong><ul>${evald.items.map(i=>`<li class="${i.ok?'badge-ok':'badge-warn'}">${i.ok?'✓':'⚠'} ${i.label}</li>`).join("")}</ul>`;
+  }else{
+    $("ecm-template-info").classList.add("hidden");
+    $("ecm-template-info").innerHTML="";
+  }
+  $("ecm-dialog").showModal();
 }
 async function saveEcm(){
   if(!$("ecmTitle").value){ alert("ECM title is required."); return; }
@@ -263,8 +419,14 @@ async function saveEcm(){
     existingCondition:$("ecmExisting").value, proposedImprovement:$("ecmProposed").value,
     missingData:$("ecmMissing").value, confidence:$("ecmConfidence").value,
     savings:{electricKwh:null,demandKw:null,therms:null,cost:null,method:null}, implementationCost:null,
-    simplePaybackYears:null, createdAt:nowISO()
+    simplePaybackYears:null, templateKey:$("ecm-template").value || null, createdAt:nowISO()
   });
+  const added=currentAudit.ecms[currentAudit.ecms.length-1];
+  if(added.templateKey){
+    const evald=evaluateTemplate(added.templateKey,added.affectedEquipmentIds);
+    added.completenessPercent=evald.percent;
+    added.completenessItems=evald.items;
+  }
   await saveCurrent(); $("ecm-dialog").close(); render();
 }
 async function deleteEcm(id){
@@ -287,12 +449,20 @@ function render(){
         <button class="secondary small" onclick="deleteEquipment('${x.recordId}')">Delete</button>
       </div>
     </div>`).join("") : `<p class="muted">No ${activeType} equipment added yet.</p>`;
+  const months=currentAudit.utility?.months||[];
+  $("utility-count").textContent=`${months.length} months`;
+  $("utility-list").innerHTML=months.length ? months.map(u=>`
+    <div class="item"><div class="row"><div><strong>${escapeHtml(u.month)}</strong>
+    <small>${u.kwh ? `${escapeHtml(u.kwh)} kWh` : ""}${u.kw ? ` • ${escapeHtml(u.kw)} kW` : ""}${u.therms ? ` • ${escapeHtml(u.therms)} therms` : ""}</small></div>
+    <button class="secondary small" onclick="deleteUtilityMonth('${u.utilityMonthId}')">Delete</button></div></div>`).join("") : `<p class="muted">No monthly utility data added yet.</p>`;
+
   $("equipment-count").textContent=`${currentAudit.equipment.length} items`;
   $("add-equipment-btn").textContent=`+ Add ${activeType} Equipment`;
 
   $("ecm-list").innerHTML=currentAudit.ecms.length ? currentAudit.ecms.map(x=>`
-    <div class="item"><div class="row"><div><strong>${x.ecmId}: ${escapeHtml(x.title)}</strong><small>${escapeHtml(x.category)} • ${escapeHtml(x.confidence)} confidence</small></div>
-    <button class="secondary small" onclick="deleteEcm('${x.ecmId}')">Delete</button></div></div>`).join("") : `<p class="muted">No ECMs added yet.</p>`;
+    <div class="item"><div class="row"><div><strong>${x.ecmId}: ${escapeHtml(x.title)}</strong><small>${escapeHtml(x.category)} • ${escapeHtml(x.confidence)} confidence</small>
+    ${x.templateKey ? `<div class="completeness"><span>${x.completenessPercent||0}% complete</span><div class="bar"><span style="width:${x.completenessPercent||0}%"></span></div></div>` : ""}
+    </div><button class="secondary small" onclick="deleteEcm('${x.ecmId}')">Delete</button></div></div>`).join("") : `<p class="muted">No ECMs added yet.</p>`;
   $("ecm-count").textContent=`${currentAudit.ecms.length} ECMs`;
 
   const measurements=currentAudit.equipment.reduce((n,x)=>n+(x.measurements?.length||0),0);
@@ -301,6 +471,7 @@ function render(){
     <div class="metric"><strong>${currentAudit.equipment.length}</strong><span>Equipment</span></div>
     <div class="metric"><strong>${measurements}</strong><span>Measurements</span></div>
     <div class="metric"><strong>${photos}</strong><span>Photos</span></div>
+    <div class="metric"><strong>${currentAudit.utility?.months?.length||0}</strong><span>Utility Months</span></div>
     <div class="metric"><strong>${currentAudit.ecms.length}</strong><span>ECMs</span></div>`;
 }
 async function exportAudit(){
@@ -316,11 +487,18 @@ async function deleteCurrentAudit(){
   await dbDelete(currentAudit.auditId); await showDashboard();
 }
 async function copyPrompt(){
-  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Field Energy Audit V2.1 JSON, including categorized equipment photos where present. First perform a data-quality review and identify missing information required for defensible calculations. Treat each input according to its source tag (Measured, Nameplate, Estimated, Assumed, Calculated). Do not invent equipment specifications. Then organize the facility systems, identify and prioritize ECMs, and calculate savings only where the supplied data supports the calculation. For each ECM provide baseline, proposed condition, calculation methodology, annual kWh/kW/therm savings, annual cost savings, implementation-cost assumptions, simple payback, major risks, and additional field data needed. Conclude with a draft ASHRAE Level 2 report outline and recommended ECM table.`;
+  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Field Energy Audit V3 JSON, including categorized equipment photos, utility data, ECM templates, and completeness metadata where present. First perform a data-quality review and identify missing information required for defensible calculations. Treat each input according to its source tag (Measured, Nameplate, Estimated, Assumed, Calculated). Do not invent equipment specifications. Then organize the facility systems, identify and prioritize ECMs, and calculate savings only where the supplied data supports the calculation. For each ECM provide baseline, proposed condition, calculation methodology, annual kWh/kW/therm savings, annual cost savings, implementation-cost assumptions, simple payback, major risks, and additional field data needed. Conclude with a draft ASHRAE Level 2 report outline and recommended ECM table.`;
   try{ await navigator.clipboard.writeText(prompt); alert("AI analysis prompt copied."); }catch{ alert(prompt); }
 }
 
 document.querySelectorAll("[data-site]").forEach(el=>el.addEventListener("input",siteInputChanged));
+
+["electric-rate","demand-rate","gas-rate","utility-notes"].forEach(id=>$(id).addEventListener("input",utilityHeaderChanged));
+$("add-utility-btn").onclick=openUtility;
+$("save-utility").onclick=saveUtilityMonth;
+$("cancel-utility").onclick=()=>$("utility-dialog").close();
+$("close-utility").onclick=()=>$("utility-dialog").close();
+
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
   activeType=b.dataset.type; document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b)); render();
 }));

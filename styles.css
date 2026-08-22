@@ -18,3 +18,11 @@ dialog{border:0;border-radius:16px;width:min(94vw,800px);max-height:90vh;overflo
 .photo-meta{font-size:11px;color:#475569;margin-top:4px;line-height:1.25}
 .photo-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px}
 .photo-card img{border:0}
+
+.template-info{margin:12px 0;padding:12px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc}
+.template-info ul{margin:8px 0 0 18px;padding:0}
+.completeness{display:flex;align-items:center;gap:8px;margin-top:8px}
+.bar{height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden;flex:1}
+.bar > span{display:block;height:100%;background:#0f172a}
+.template-action{display:flex;align-items:end;padding-bottom:10px}
+.badge-ok{color:#166534;font-weight:700}.badge-warn{color:#a16207;font-weight:700}

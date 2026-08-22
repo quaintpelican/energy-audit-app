@@ -1,4 +1,4 @@
-# Field Energy Audit — V2.1
+# Field Energy Audit — V3
 
 Offline-first Progressive Web App for structured field energy audits.
 
@@ -47,3 +47,28 @@ For major equipment, capture at minimum:
 - Nameplate
 - Controls
 - Deficiency, when applicable
+
+
+## V3 upgrades
+- Utility-rate fields and monthly utility records
+- ECM templates for common HVAC, lighting, and DHW measures
+- Required-data rules for each ECM template
+- Automatic ECM completeness scoring
+- Visual completeness bars in the ECM list
+- Utility months included in audit review and AI export
+
+## Current ECM templates
+- HVAC Supply Fan VFD
+- HVAC Schedule Optimization
+- Economizer Repair / Optimization
+- LED Lighting Retrofit
+- Lighting Controls
+- Heat Pump Water Heater
+- Tankless Water Heater
+
+## Next milestone
+- equipment-specific required-photo logic
+- editable ECMs
+- utility CSV import
+- engineering calculators for first ECM families
+- optional cloud backup/sync

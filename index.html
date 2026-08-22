@@ -66,7 +66,21 @@
 
       <section class="card">
         <div class="section-title">
-          <h2>2. Equipment</h2><span id="equipment-count" class="pill">0</span>
+          <h2>2. Utility Data</h2><span id="utility-count" class="pill">0 months</span>
+        </div>
+        <div class="grid">
+          <label>Electric Rate ($/kWh)<input id="electric-rate" type="number" step="0.0001" inputmode="decimal" placeholder="0.25" /></label>
+          <label>Demand Rate ($/kW)<input id="demand-rate" type="number" step="0.01" inputmode="decimal" placeholder="20" /></label>
+          <label>Gas Rate ($/therm)<input id="gas-rate" type="number" step="0.0001" inputmode="decimal" placeholder="2.00" /></label>
+          <label>Utility Notes<input id="utility-notes" placeholder="Tariff, seasonal notes, anomalies..." /></label>
+        </div>
+        <div class="section-title"><h3>Monthly Bills</h3><button class="secondary small" id="add-utility-btn">+ Month</button></div>
+        <div id="utility-list" class="list compact"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h2>3. Equipment</h2><span id="equipment-count" class="pill">0</span>
         </div>
         <div class="tabs">
           <button class="tab active" data-type="HVAC">HVAC</button>
@@ -79,14 +93,28 @@
 
       <section class="card">
         <div class="section-title">
-          <h2>3. ECM Opportunities</h2><span id="ecm-count" class="pill">0</span>
+          <h2>4. ECM Opportunities</h2><span id="ecm-count" class="pill">0</span>
+        </div>
+        <div class="grid">
+          <label>ECM Template
+            <select id="ecm-template">
+              <option value="">Custom ECM</option>
+              <option value="hvac_vfd">HVAC Supply Fan VFD</option>
+              <option value="hvac_schedule">HVAC Schedule Optimization</option>
+              <option value="hvac_economizer">Economizer Repair / Optimization</option>
+              <option value="lighting_led">Lighting LED Retrofit</option>
+              <option value="lighting_controls">Lighting Controls</option>
+              <option value="dhw_hpwh">Heat Pump Water Heater</option>
+              <option value="dhw_tankless">Tankless Water Heater</option>
+            </select>
+          </label>
+          <div class="template-action"><button id="add-ecm-btn">+ Add ECM</button></div>
         </div>
         <div id="ecm-list" class="list"></div>
-        <button id="add-ecm-btn">+ Add ECM</button>
       </section>
 
       <section class="card">
-        <h2>4. Audit Review</h2>
+        <h2>5. Audit Review</h2>
         <div id="review-summary" class="review-grid"></div>
         <div class="actions">
           <button id="copy-prompt-btn">Copy AI Analysis Prompt</button>
@@ -159,6 +187,23 @@
     </div>
   </dialog>
 
+  <dialog id="utility-dialog">
+    <div class="dialog-head"><h3>Add Utility Month</h3><button class="secondary icon" id="close-utility">✕</button></div>
+    <div class="grid">
+      <label>Month<input id="uMonth" type="month" /></label>
+      <label>Electric Usage (kWh)<input id="uKwh" type="number" inputmode="decimal" /></label>
+      <label>Peak Demand (kW)<input id="uKw" type="number" inputmode="decimal" /></label>
+      <label>Electric Cost ($)<input id="uElectricCost" type="number" inputmode="decimal" /></label>
+      <label>Gas Usage (therms)<input id="uTherms" type="number" inputmode="decimal" /></label>
+      <label>Gas Cost ($)<input id="uGasCost" type="number" inputmode="decimal" /></label>
+    </div>
+    <label>Notes<input id="uNotes" /></label>
+    <div class="actions">
+      <button class="secondary" id="cancel-utility">Cancel</button>
+      <button id="save-utility">Save Month</button>
+    </div>
+  </dialog>
+
   <dialog id="ecm-dialog">
     <div class="dialog-head"><h3>Add ECM</h3><button class="secondary icon" id="close-ecm">✕</button></div>
     <label>ECM Title<input id="ecmTitle" /></label>
@@ -168,6 +213,7 @@
     <label>Proposed Improvement<textarea id="ecmProposed" rows="2"></textarea></label>
     <label>Data Still Needed<textarea id="ecmMissing" rows="2"></textarea></label>
     <label>Confidence<select id="ecmConfidence"><option>High</option><option selected>Medium</option><option>Low</option></select></label>
+    <div id="ecm-template-info" class="template-info hidden"></div>
     <div class="actions">
       <button class="secondary" id="cancel-ecm">Cancel</button>
       <button id="save-ecm">Save ECM</button>
