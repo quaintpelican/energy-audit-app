@@ -7,12 +7,15 @@
 - Atomic audit/photo addition and deletion transactions.
 - Explicit application, audit-schema, and IndexedDB versions.
 - Recoverable pre-migration audit backups.
+- User-exportable pre-migration backup JSON and backup deletion with permanent audit deletion.
 - Refusal to overwrite unsupported future-schema audits.
 - Stable equipment `recordId` relationships for ECMs.
+- Explicit preservation of unresolved legacy ECM equipment references.
 - Duplicate equipment-ID prevention before persistence.
 - Editable ECMs and dynamic completeness recalculation.
 - Required vs recommended completeness items and photo rules.
 - Integrity diagnostics in JSON export.
+- DB-v3 production bridge artifact for rollback-safe deployment.
 - Safer service-worker activation behavior.
 
 ### Known limitations
