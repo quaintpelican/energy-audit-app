@@ -133,6 +133,8 @@ ecm
 - title
 - category
 - affectedEquipmentIds[]
+- affectedEquipmentRecordIds[]
+- unresolvedEquipmentReferences[]
 - existingCondition
 - proposedImprovement
 - missingData
@@ -167,6 +169,18 @@ Required evolution:
 - implementation considerations;
 - M&V;
 - dynamic completeness recalculation.
+
+Unresolved legacy relationship:
+```text
+- displayId                 original editable equipment ID
+- source                    e.g. legacy-affectedEquipmentIds
+- reason                    duplicate-display-id / equipment-not-found
+- candidateRecordIds[]      conservative candidate UUIDs captured during migration
+- migratedAt
+- resolution               null until an explicit future resolution workflow
+```
+
+Unresolved references must remain exportable, must not be overwritten by completeness recalculation, and must conservatively block deletion of matching equipment until explicitly resolved.
 
 ## Calculation [planned canonical object]
 ```text
