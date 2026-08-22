@@ -10,12 +10,14 @@ Data safety, migration control, referential integrity, and dynamic completeness.
 - Database upgrades retain recoverable pre-migration audit copies.
 - Audits from unsupported future schema versions are refused rather than overwritten.
 - Ambiguous legacy equipment relationships are preserved as migration warnings.
+- Unresolved legacy ECM relationships retain their original display IDs in `unresolvedEquipmentReferences` until explicit future resolution.
 - Saves are serialized and destructive UI changes roll back when persistence fails.
 - Duplicate equipment IDs are blocked before persistence.
 - ECM completeness requires selected equipment and usable measurement/photo evidence.
 - ECM display relationships refresh from stable record IDs.
 - ECM IDs remain unique after deletions.
 - JSON exports include integrity diagnostics and explicitly disclose that photo blobs are excluded.
+- Audits with migration backups expose an **Export Pre-Migration Backup** action.
 - Service-worker updates no longer take control of an already-open page immediately.
 
 ## Major changes
@@ -39,6 +41,16 @@ Data safety, migration control, referential integrity, and dynamic completeness.
 
 ## Migration
 Opening an older IndexedDB audit automatically adds missing V3 structures and stable ECM equipment relationships where they can be resolved. Migration does not invent engineering values.
+
+Before replacing the primary audit, Audist validates the migrated structure and stores the complete original audit in the `migrationBackups` object store. Ambiguous or missing legacy equipment IDs remain in each ECM's `unresolvedEquipmentReferences` and continue to block potentially destructive equipment deletion.
+
+### Migration-backup recovery
+
+When a backup exists, open the migrated audit and select **Export Pre-Migration Backup**. This downloads the exact pre-migration audit JSON. Keep it until the migrated audit has passed relationship, equipment, measurement, photo, and export verification. Permanently deleting the audit also deletes its migration backups.
+
+### Rollback-safe deployment
+
+Deploy the DB-v3 bridge in `release/rollback-bridge/` before the complete V3.1 release. Once a device has opened database version 3, roll back only to the bridge release, never to the original DB-v2 build.
 
 Legacy V2.1/V3 photos embedded as `dataUrl` remain readable. New photos use the dedicated IndexedDB photo store.
 
