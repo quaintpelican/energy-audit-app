@@ -165,19 +165,90 @@ function renderDraftMeasurements(){
     <button class="secondary small" onclick="deleteMeasurement('${m.measurementId}')">Delete</button></div></div>`).join("") : `<p class="muted">No measurements yet.</p>`;
 }
 
+async function compressImage(file, maxDimension=1600, quality=0.78){
+  const sourceUrl = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((resolve,reject)=>{
+      const i = new Image();
+      i.onload = ()=>resolve(i);
+      i.onerror = reject;
+      i.src = sourceUrl;
+    });
+
+    let {width, height} = img;
+    const scale = Math.min(1, maxDimension / Math.max(width,height));
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, width, height);
+
+    return await new Promise((resolve,reject)=>{
+      canvas.toBlob(blob=>{
+        if(!blob) return reject(new Error("Image compression failed"));
+        const reader = new FileReader();
+        reader.onload = ()=>resolve({
+          dataUrl: reader.result,
+          width,
+          height,
+          compressedBytes: blob.size
+        });
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      }, "image/jpeg", quality);
+    });
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
 async function handlePhoto(file){
   if(!file || !draftEquipment) return;
-  if(file.size > 8_000_000){ alert("Photo is too large. Please use a smaller image."); return; }
-  const dataUrl=await new Promise((resolve,reject)=>{
-    const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file);
-  });
-  draftEquipment.photos.push({photoId:uid(),name:file.name||"photo.jpg",type:"Field Photo",dataUrl,capturedAt:nowISO()});
-  renderDraftPhotos(); $("photo-input").value="";
+  try{
+    const compressed = await compressImage(file);
+    const category = $("photo-category").value || "Other";
+    const note = $("photo-note").value.trim();
+    const equipmentId = ($("f_equipmentId")?.value || draftEquipment.equipmentId || "Equipment").trim();
+    const safeCategory = category.replace(/[^a-z0-9]+/gi,"_");
+    const sequence = String((draftEquipment.photos?.length || 0) + 1).padStart(2,"0");
+    const generatedName = `${equipmentId}_${safeCategory}_${sequence}.jpg`;
+
+    draftEquipment.photos.push({
+      photoId:uid(),
+      name:generatedName,
+      category,
+      note,
+      dataUrl:compressed.dataUrl,
+      capturedAt:nowISO(),
+      width:compressed.width,
+      height:compressed.height,
+      originalBytes:file.size,
+      compressedBytes:compressed.compressedBytes
+    });
+
+    $("photo-note").value="";
+    renderDraftPhotos();
+  } catch(err){
+    console.error(err);
+    alert("Photo could not be processed. Please try another image.");
+  } finally {
+    $("photo-input").value="";
+  }
 }
 function deletePhoto(id){ draftEquipment.photos=draftEquipment.photos.filter(x=>x.photoId!==id); renderDraftPhotos(); }
 function renderDraftPhotos(){
-  $("photo-list").innerHTML=(draftEquipment?.photos||[]).map(p=>`
-    <div class="photo-card"><img src="${p.dataUrl}" alt="${escapeHtml(p.name)}"><button onclick="deletePhoto('${p.photoId}')">✕</button></div>`).join("");
+  $("photo-list").innerHTML=(draftEquipment?.photos||[]).map(p=>{
+    const kb = p.compressedBytes ? Math.round(p.compressedBytes/1024) : null;
+    return `
+    <div class="photo-card">
+      <img src="${p.dataUrl}" alt="${escapeHtml(p.name)}">
+      <button onclick="deletePhoto('${p.photoId}')">✕</button>
+      <div class="photo-meta"><strong>${escapeHtml(p.category || "Field Photo")}</strong>${p.note ? `<br>${escapeHtml(p.note)}` : ""}${kb ? `<br>${kb} KB` : ""}</div>
+    </div>`;
+  }).join("");
 }
 
 function openEcm(){
@@ -245,7 +316,7 @@ async function deleteCurrentAudit(){
   await dbDelete(currentAudit.auditId); await showDashboard();
 }
 async function copyPrompt(){
-  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Field Energy Audit V2 JSON. First perform a data-quality review and identify missing information required for defensible calculations. Treat each input according to its source tag (Measured, Nameplate, Estimated, Assumed, Calculated). Do not invent equipment specifications. Then organize the facility systems, identify and prioritize ECMs, and calculate savings only where the supplied data supports the calculation. For each ECM provide baseline, proposed condition, calculation methodology, annual kWh/kW/therm savings, annual cost savings, implementation-cost assumptions, simple payback, major risks, and additional field data needed. Conclude with a draft ASHRAE Level 2 report outline and recommended ECM table.`;
+  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Field Energy Audit V2.1 JSON, including categorized equipment photos where present. First perform a data-quality review and identify missing information required for defensible calculations. Treat each input according to its source tag (Measured, Nameplate, Estimated, Assumed, Calculated). Do not invent equipment specifications. Then organize the facility systems, identify and prioritize ECMs, and calculate savings only where the supplied data supports the calculation. For each ECM provide baseline, proposed condition, calculation methodology, annual kWh/kW/therm savings, annual cost savings, implementation-cost assumptions, simple payback, major risks, and additional field data needed. Conclude with a draft ASHRAE Level 2 report outline and recommended ECM table.`;
   try{ await navigator.clipboard.writeText(prompt); alert("AI analysis prompt copied."); }catch{ alert(prompt); }
 }
 

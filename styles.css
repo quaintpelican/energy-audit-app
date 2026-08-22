@@ -14,3 +14,7 @@ button.secondary{background:#e2e8f0;color:#0f172a}.small{min-height:36px!importa
 .audit-card{cursor:pointer}.audit-card:hover{border-color:#94a3b8}.audit-meta{display:flex;gap:10px;flex-wrap:wrap;color:#64748b;font-size:12px}.sticky-actions{position:sticky;bottom:0;background:white;padding-top:12px}
 dialog{border:0;border-radius:16px;width:min(94vw,800px);max-height:90vh;overflow:auto;padding:18px;box-shadow:0 20px 60px #0005}dialog::backdrop{background:#0f172a99}
 @media(max-width:520px){main{padding:10px}.card{padding:14px;border-radius:14px}.app-header{padding-top:max(14px,env(safe-area-inset-top))}.photo-grid{grid-template-columns:repeat(2,1fr)}}
+
+.photo-meta{font-size:11px;color:#475569;margin-top:4px;line-height:1.25}
+.photo-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px}
+.photo-card img{border:0}

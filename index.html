@@ -108,8 +108,24 @@
     </div>
 
     <div class="subsection">
-      <div class="section-title"><h3>Photos</h3><span class="pill">Stored on device</span></div>
-      <label class="photo-button">+ Add Photo<input id="photo-input" type="file" accept="image/*" capture="environment" hidden /></label>
+      <div class="section-title"><h3>Photos</h3><span class="pill">Compressed + stored on device</span></div>
+      <div class="grid">
+        <label>Photo Category
+          <select id="photo-category">
+            <option>Nameplate</option>
+            <option>Equipment Overview</option>
+            <option>Controls</option>
+            <option>Motor / Drive</option>
+            <option>Electrical</option>
+            <option>Deficiency</option>
+            <option>Measurement Setup</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label>Photo Note<input id="photo-note" placeholder="Optional note..." /></label>
+      </div>
+      <label class="photo-button">Open Camera / Choose Photo<input id="photo-input" type="file" accept="image/*" capture="environment" hidden /></label>
+      <p class="muted">Photos are resized before storage to reduce audit size. Original photos remain in your iPhone camera library only if you took them outside the app.</p>
       <div id="photo-list" class="photo-grid"></div>
     </div>
 
