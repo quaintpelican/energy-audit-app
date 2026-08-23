@@ -13,7 +13,7 @@
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V3.1 • Offline-first</p>
+      <p id="header-status">V3.2 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -82,20 +82,25 @@
 
       <section class="card">
         <div class="section-title">
-          <h2>3. Equipment</h2><span id="equipment-count" class="pill">0</span>
+          <h2>3. System Inventory / Audit Scope</h2><span id="system-count" class="pill">0 present</span>
         </div>
-        <div class="tabs">
-          <button class="tab active" data-type="HVAC">HVAC</button>
-          <button class="tab" data-type="Lighting">Lighting</button>
-          <button class="tab" data-type="DHW">DHW</button>
-        </div>
-        <div id="equipment-list" class="list"></div>
-        <button id="add-equipment-btn">+ Add HVAC Equipment</button>
+        <p class="muted">Select only systems present or intentionally included in this audit. Unselected systems do not create missing-data prompts.</p>
+        <div id="system-scope" class="scope-grid"></div>
+        <div id="system-detail-list" class="list compact"></div>
       </section>
 
       <section class="card">
         <div class="section-title">
-          <h2>4. ECM Opportunities</h2><span id="ecm-count" class="pill">0</span>
+          <h2>4. Equipment</h2><span id="equipment-count" class="pill">0</span>
+        </div>
+        <div id="equipment-tabs" class="tabs"></div>
+        <div id="equipment-list" class="list"></div>
+        <button id="add-equipment-btn">+ Add Equipment</button>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h2>5. ECM Opportunities</h2><span id="ecm-count" class="pill">0</span>
         </div>
         <div class="grid">
           <label>ECM Template
@@ -116,7 +121,7 @@
       </section>
 
       <section class="card">
-        <h2>5. Audit Review</h2>
+        <h2>6. Audit Review</h2>
         <div id="review-summary" class="review-grid"></div>
         <div class="actions">
           <button id="copy-prompt-btn">Copy AI Analysis Prompt</button>
@@ -131,6 +136,7 @@
     <div id="equipment-fields" class="grid"></div>
     <label>Field Notes<textarea id="equipmentNotes" rows="3"></textarea></label>
     <label>Potential ECM Flags<input id="equipmentFlags" placeholder="VFD, schedule reduction, replacement..." /></label>
+    <button class="secondary" id="duplicate-equipment-btn">Duplicate Equipment</button>
 
     <div class="subsection">
       <div class="section-title"><h3>Measurements</h3><button class="secondary small" id="add-measurement-btn">+ Measurement</button></div>
@@ -145,6 +151,12 @@
             <option>Nameplate</option>
             <option>Equipment Overview</option>
             <option>Controls</option>
+            <option>Controls / BAS Screen</option>
+            <option>Burner / Controls</option>
+            <option>Motor Nameplate</option>
+            <option>VFD / Starter</option>
+            <option>Fan / Drive</option>
+            <option>Condition Photo</option>
             <option>Motor / Drive</option>
             <option>Electrical</option>
             <option>Deficiency</option>
@@ -168,6 +180,7 @@
   <dialog id="measurement-dialog">
     <div class="dialog-head"><h3>Add Measurement</h3><button class="secondary icon" id="close-measurement">✕</button></div>
     <div class="grid">
+      <label>Preset<select id="measurement-preset"><option value="">Custom parameter...</option></select></label>
       <label>Parameter<input id="mParameter" placeholder="Supply air temperature" /></label>
       <label>Value<input id="mValue" inputmode="decimal" placeholder="55.2" /></label>
       <label>Unit<input id="mUnit" placeholder="°F, A, V, kW, in. w.c." /></label>
