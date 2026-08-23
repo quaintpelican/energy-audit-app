@@ -30,7 +30,7 @@ Goals:
 
 Success criterion: auditor can open an ECM at any time and see an accurate onsite missing-data list.
 
-## Current candidate — V3.2: System Coverage & Field Schema
+## Completed — V3.2: System Coverage & Field Schema
 - facility System Inventory / Audit Scope;
 - first-class `systems[]` with stable equipment relationships;
 - broad commercial/industrial equipment taxonomy;
@@ -43,11 +43,17 @@ Success criterion: auditor can open an ECM at any time and see an accurate onsit
 
 Success criterion: an auditor can represent the major energy-using systems in most commercial/industrial buildings without falling back to generic notes.
 
-## V3.3: Field-speed refinement
-- repeated-value reuse;
-- improved navigation/search;
-- equipment status/completeness;
-- faster one-handed iPhone workflows informed by V3.2 field testing.
+## Current candidate — V3.3: Field Workflow & Progressive Disclosure
+- selected-system summary with an expandable audit-scope editor;
+- compact system/equipment navigation with counts;
+- Core, Recommended, Controls/Operating Conditions, and Advanced field tiers;
+- concise equipment/photo/ECM status indicators with prominent critical warnings;
+- preset-first measurement entry;
+- compact linked-ECM visibility;
+- reserved V4 Engineering Analysis locations without formulas;
+- no audit-schema or IndexedDB-version change.
+
+Success criterion: experienced auditors retain immediate access to engineering depth without processing every field and requirement simultaneously.
 
 ## V4.0: Engineering calculation engine
 Start with rigorously defined methods:
