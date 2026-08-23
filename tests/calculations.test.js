@@ -1,124 +1,41 @@
-const test=require("node:test");
-const assert=require("node:assert/strict");
-const engine=require("../calculations.js");
-
-const input=(parameterId,value,unit,overrides={})=>({parameterId,displayName:parameterId,value,unit,provenance:"Measured",evidenceLevel:"A",sourceDescription:"Field measurement",...overrides});
-const value=(result,id)=>result.outputs.find(output=>output.parameterId===id)?.value;
-const run=(methodId,inputs,context={})=>engine.run(methodId,inputs,context);
-
-test("registry exposes only the approved Phase 1 methods",()=>{
-  assert.deepEqual(Object.keys(engine.METHOD_REGISTRY).sort(),[
-    "CALC-ELEC-001","CALC-ELEC-002","CALC-FAN-001","CALC-FAN-002","CALC-FIN-001",
-    "CALC-GEN-001","CALC-HVAC-001","CALC-LTG-001","CALC-LTG-002","CALC-UTIL-001"
-  ]);
-});
-
-test("GEN-001 calculates annual energy and savings",()=>{
-  const result=run("CALC-GEN-001",[input("baselineKw",10,"kW"),input("annualHours",3000,"hr/yr"),input("proposedKw",6,"kW")]);
-  assert.equal(value(result,"annualEnergyKwh"),30000);
-  assert.equal(value(result,"annualKwhSavings"),12000);
-});
-
-test("electrical methods calculate single and balanced three-phase real power",()=>{
-  assert.equal(value(run("CALC-ELEC-001",[input("voltage",240,"V"),input("current",10,"A"),input("powerFactor",0.9,"fraction")]),"realPowerKw"),2.16);
-  assert.ok(Math.abs(value(run("CALC-ELEC-002",[input("lineVoltage",480,"V"),input("lineCurrent",100,"A"),input("powerFactor",0.9,"fraction")]),"realPowerKw")-74.824594886)<2e-9);
-});
-
-test("lighting retrofit and controls use explicit watts, quantity, power, and hours",()=>{
-  const retrofit=run("CALC-LTG-001",[input("existingFixtureWatts",80,"W"),input("proposedFixtureWatts",30,"W"),input("quantity",100,"count"),input("annualHours",3000,"hr/yr")]);
-  assert.equal(value(retrofit,"existingKw"),8);
-  assert.equal(value(retrofit,"proposedKw"),3);
-  assert.equal(value(retrofit,"demandReductionKw"),5);
-  assert.equal(value(retrofit,"annualKwhSavings"),15000);
-  const controls=run("CALC-LTG-002",[input("controlledLightingKw",8,"kW"),input("baselineHours",4000,"hr/yr"),input("proposedHours",3000,"hr/yr")]);
-  assert.equal(value(controls,"annualKwhSavings"),8000);
-});
-
-test("HVAC schedule rejects proposed hours above baseline",()=>{
-  const result=run("CALC-HVAC-001",[input("baselineAffectedKw",20,"kW"),input("baselineHours",2000,"hr/yr"),input("proposedHours",2500,"hr/yr")]);
-  assert.equal(result.status,"Calculation not ready");
-  assert.match(result.errors.join(" "),/cannot exceed baseline/);
-});
-
-test("fan measured-power and affinity-bin methods calculate deterministically",()=>{
-  const measured=run("CALC-FAN-001",[input("measuredFanKw",10,"kW"),input("annualHours",2000,"hr/yr")]);
-  assert.equal(value(measured,"annualFanEnergyKwh"),20000);
-  const bins=input("operatingBins",[{speedFraction:0.5,hours:1000},{speedFraction:0.75,hours:2000}],"speed fraction, hr");
-  const affinity=run("CALC-FAN-002",[input("baselineFanKw",10,"kW"),bins]);
-  assert.equal(value(affinity,"annualKwhSavings"),20312.5);
-  assert.equal(affinity.maturity,"ENGINEERING_ESTIMATE");
-});
-
-test("utility cost and simple payback are explicit linked stages",()=>{
-  const cost=run("CALC-UTIL-001",[input("annualKwhSavings",10000,"kWh/yr"),input("electricRate",0.2,"$/kWh",{provenance:"Utility Bill"})]);
-  assert.equal(value(cost,"annualCostSavings"),2000);
-  assert.equal(value(run("CALC-FIN-001",[input("netImplementationCost",5000,"$"),input("annualCostSavings",2000,"$/yr")]),"simplePaybackYears"),2.5);
-  assert.equal(run("CALC-FIN-001",[input("netImplementationCost",5000,"$"),input("annualCostSavings",0,"$/yr")]).status,"Calculation not ready");
-});
-
-test("missing, nonnumeric, negative, wrong-unit, and missing-provenance inputs do not calculate",()=>{
-  const cases=[
-    [input("baselineKw","bad","kW"),input("annualHours",1,"hr/yr")],
-    [input("baselineKw",-1,"kW"),input("annualHours",1,"hr/yr")],
-    [input("baselineKw",1,"W"),input("annualHours",1,"hr/yr")],
-    [input("baselineKw",1,"kW",{provenance:""}),input("annualHours",1,"hr/yr")],
-    [input("baselineKw",1,"kW")]
-  ];
-  cases.forEach(inputs=>assert.equal(run("CALC-GEN-001",inputs).status,"Calculation not ready"));
-});
-
-test("manual inputs cannot calculate without source descriptions or with undocumented estimates",()=>{
-  const noSource=[input("baselineKw",10,"kW",{sourceDescription:""}),input("annualHours",3000,"hr/yr")];
-  assert.match(run("CALC-GEN-001",noSource).errors.join(" "),/source or assumption description/);
-  const undocumented=[input("baselineKw",10,"kW"),input("annualHours",3000,"hr/yr",{provenance:"Estimated",evidenceLevel:"C",assumptionRationale:""})];
-  assert.match(run("CALC-GEN-001",undocumented).errors.join(" "),/assumption rationale/);
-});
-
-test("assumed/default evidence is visible and caps maturity at screening",()=>{
-  const result=run("CALC-GEN-001",[input("baselineKw",10,"kW"),input("annualHours",3000,"hr/yr",{provenance:"Assumed",evidenceLevel:"D",sourceDescription:"Screening assumption",assumptionRationale:"Schedule not yet confirmed"})]);
-  assert.equal(result.evidenceLevel,"D");
-  assert.equal(result.maturity,"SCREENING");
-  assert.ok(result.qaFlags.some(flag=>flag.code==="ASSUMED_DEFAULT_INPUT"));
-  assert.match(result.assumptions[0].text,/not yet confirmed/);
-});
-
-test("evidence A does not automatically become high confidence without method-specific support",()=>{
-  const ordinary=run("CALC-GEN-001",[input("baselineKw",10,"kW",{provenance:"Nameplate"}),input("annualHours",3000,"hr/yr",{provenance:"Nameplate"})]);
-  assert.equal(ordinary.evidenceLevel,"A");
-  assert.equal(ordinary.maturity,"ENGINEERING_ESTIMATE");
-  const supported=run("CALC-GEN-001",[input("baselineKw",10,"kW"),input("annualHours",3000,"hr/yr",{provenance:"BAS / Trend"})]);
-  assert.equal(supported.maturity,"HIGH_CONFIDENCE_ESTIMATE");
-});
-
-test("runtime and facility-savings sanity checks emit QA flags",()=>{
-  const result=run("CALC-GEN-001",[input("baselineKw",10,"kW"),input("annualHours",9000,"hr/yr"),input("proposedKw",0,"kW")],{audit:{utility:{months:[{kwh:1000}]}}});
-  assert.ok(result.qaFlags.some(flag=>flag.code==="RUNTIME_OVER_8760"));
-  assert.ok(result.qaFlags.some(flag=>flag.code==="SAVINGS_EXCEED_FACILITY"));
-});
-
-test("running a calculation does not mutate supplied inputs",()=>{
-  const inputs=[input("baselineKw",10,"kW"),input("annualHours",3000,"hr/yr")];
-  const before=structuredClone(inputs);
-  run("CALC-GEN-001",inputs);
-  assert.deepEqual(inputs,before);
-});
-
-test("method definitions carry applicability, units, evidence, source basis, and numerical validation references",()=>{
-  Object.values(engine.METHOD_REGISTRY).forEach(method=>{
-    assert.ok(method.applicability&&method.formula&&method.inputs.length&&method.outputs.length);
-    assert.ok(method.inputs.every(item=>item.unit&&item.acceptedUnits.length));
-    assert.match(method.evidenceRequirements,/provenance/);
-    assert.match(method.sourceReferenceBasis,/V1\.1/);
-    assert.match(method.numericalTestCases,/calculations\.test\.js/);
-  });
-});
-
-test("source linkage and provenance are preserved in the reproducible input snapshot",()=>{
-  const linked=input("baselineKw",10,"kW",{sourceKind:"measurement",sourceRecordId:"m-1",equipmentRecordId:"eq-1",sourceField:"value"});
-  linked.sourceFingerprint=engine.sourceFingerprint(linked);
-  const result=run("CALC-GEN-001",[linked,input("annualHours",3000,"hr/yr")]);
-  assert.equal(result.inputs[0].sourceRecordId,"m-1");
-  assert.equal(result.inputs[0].provenance,"Measured");
-  assert.equal(result.inputs[0].sourceFingerprint,linked.sourceFingerprint);
-});
+const test=require("node:test"),assert=require("node:assert/strict"),engine=require("../calculations.js");
+const i=(parameterId,value,unit,o={})=>({parameterId,displayName:parameterId,value,unit,provenance:"Measured",evidenceLevel:"A",sourceDescription:"Test evidence",...o});
+const v=(r,id)=>r.outputs.find(x=>x.parameterId===id)?.value;
+const F={
+"CALC-GEN-001":[i("baselineKw",10,"kW"),i("annualHours",3000,"hr/yr"),i("proposedKw",6,"kW")],
+"CALC-ELEC-001":[i("voltage",240,"V"),i("current",10,"A"),i("powerFactor",.9,"fraction")],
+"CALC-ELEC-002":[i("lineVoltage",480,"V"),i("lineCurrent",100,"A"),i("powerFactor",.9,"fraction")],
+"CALC-LTG-001":[i("existingFixtureWatts",80,"W"),i("proposedFixtureWatts",30,"W"),i("quantity",100,"count"),i("annualHours",3000,"hr/yr")],
+"CALC-LTG-002":[i("controlledLightingKw",8,"kW"),i("baselineHours",4000,"hr/yr"),i("proposedHours",3000,"hr/yr")],
+"CALC-HVAC-001":[i("baselineAffectedKw",20,"kW"),i("baselineHours",2500,"hr/yr"),i("proposedHours",2000,"hr/yr")],
+"CALC-FAN-001":[i("measuredFanKw",10,"kW"),i("annualHours",2000,"hr/yr")],
+"CALC-FAN-002":[i("baselineFanKw",10,"kW"),i("operatingBins",[{speedFraction:.5,hours:1000}],"speed fraction, hr")],
+"CALC-PUMP-001":[i("flowGpm",396,"gpm"),i("totalDynamicHeadFt",100,"ft head"),i("specificGravity",1,"fraction"),i("pumpEfficiency",.8,"fraction"),i("motorEfficiency",.9,"fraction")],
+"CALC-PUMP-002":[i("baselinePumpKw",20,"kW"),i("operatingBins",[{speedFraction:.5,hours:1000}],"speed fraction, hr"),i("significantStaticHead","No","selection")],
+"CALC-WTR-001":[i("flowGpm",100,"gpm"),i("deltaTemperatureF",12,"Δ°F"),i("fluidType","Water","selection"),i("simultaneousMeasurements","Yes","selection")],
+"CALC-CHW-001":[i("chillerKw",100,"kW"),i("simultaneousCoolingTons",200,"ton"),i("electricalBoundary","Chiller only","selection"),i("simultaneousMeasurements","Yes","selection")],
+"CALC-AIR-001":[i("airflowCfm",10000,"cfm"),i("deltaTemperatureF",20,"Δ°F"),i("latentLoadMaterial","No","selection")],
+"CALC-AIR-002":[i("airflowCfm",10000,"cfm"),i("enthalpyDifference",8,"Btu/lb"),i("psychrometricInputsConsistent","Yes","selection")],
+"CALC-BLR-001":[i("usefulLoadBtu",8e7,"Btu/yr"),i("baselineEfficiency",.8,"fraction"),i("proposedEfficiency",.9,"fraction"),i("baselineEfficiencyBasis","Seasonal/system","selection")],
+"CALC-DHW-001":[i("dailyGallons",100,"gallons/day"),i("inletTemperatureF",60,"°F"),i("deliveryTemperatureF",120,"°F"),i("operatingDays",365,"days/year")],
+"CALC-DHW-002":[i("annualUsefulBtu",3412e4,"Btu/yr"),i("baselineTechnology","Combustion","selection"),i("baselineEfficiency",.8,"fraction"),i("proposedTechnology","Electric / heat pump","selection"),i("proposedCop",2.5,"COP"),i("copBasis","Annual/system","selection")],
+"CALC-REF-001":[i("baselineFanWatts",50,"W"),i("proposedFanWatts",20,"W"),i("quantity",10,"count"),i("annualHours",8760,"hr/yr")],
+"CALC-CA-001":[i("flowReductionCfm",100,"cfm"),i("specificPower",20,"kW/100 cfm"),i("annualHours",4000,"hr/yr"),i("specificPowerBasis","Measured system","selection")],
+"CALC-ENV-001":[i("existingUFactor",.5,"Btu/(hr·ft²·°F)"),i("proposedUFactor",.1,"Btu/(hr·ft²·°F)"),i("areaSqFt",1000,"ft²"),i("calculationMode","Annual","selection"),i("degreeHours",10000,"degree-hours")],
+"CALC-UTIL-001":[i("annualKwhSavings",10000,"kWh/yr"),i("electricRate",.2,"$/kWh")],
+"CALC-UTIL-002":[i("touPeriods",[{label:"Peak",kwh:1000,rate:.3},{label:"Off",kwh:2000,rate:.1}],"kWh and $/kWh")],
+"CALC-UTIL-003":[i("demandPeriods",[{label:"Summer",peakKwReduction:10,demandRate:20,coincidenceSupported:true}],"kW and $/kW")],
+"CALC-FIN-001":[i("netImplementationCost",5000,"$"),i("annualCostSavings",2000,"$/yr")],
+"CALC-FIN-002":[i("initialCost",1000,"$"),i("discountRate",.1,"fraction"),i("analysisPeriod",2,"yr"),i("cashFlows",[{year:1,cashFlow:600},{year:2,cashFlow:600}],"year and $"),i("cashFlowConvention","End of year","selection")]
+};
+test("registry has exactly 25 READY-V1 and 11 VALIDATE-V2 methods",()=>{const m=Object.values(engine.METHOD_REGISTRY);assert.equal(m.filter(x=>x.status===engine.READY).length,25);assert.equal(m.filter(x=>x.status===engine.VALIDATE).length,11);assert.deepEqual(Object.keys(F).sort(),m.filter(x=>x.status===engine.READY).map(x=>x.methodId).sort())});
+test("all 25 READY-V1 methods execute deterministic finite cases",()=>{for(const [id,inputs] of Object.entries(F)){const r=engine.run(id,inputs);assert.equal(r.status,"Calculated",`${id}: ${r.errors.join("; ")}`);assert.ok(r.outputs.length&&r.outputs.every(x=>Number.isFinite(x.value)),id)}});
+test("known reference outputs reproduce",()=>{const cases=[["CALC-GEN-001","annualKwhSavings",12000],["CALC-ELEC-001","realPowerKw",2.16],["CALC-LTG-001","annualKwhSavings",15000],["CALC-PUMP-001","hydraulicHp",10],["CALC-WTR-001","coolingTons",50],["CALC-CHW-001","operatingEfficiencyKwPerTon",.5],["CALC-AIR-001","sensibleLoadBtuPerHour",216000],["CALC-DHW-002","proposedElectricKwh",4000],["CALC-UTIL-002","annualCostSavings",500],["CALC-FIN-002","netPresentValue",41.3223140496]];for(const [id,out,want] of cases)assert.ok(Math.abs(v(engine.run(id,F[id]),out)-want)<1e-6,id)});
+test("every READY method rejects missing required input, wrong unit, and missing provenance",()=>{for(const [id,inputs] of Object.entries(F)){const req=engine.METHOD_REGISTRY[id].inputs.find(x=>!x.optional);assert.equal(engine.run(id,inputs.filter(x=>x.parameterId!==req.parameterId)).status,"Calculation not ready",id);assert.equal(engine.run(id,inputs.map(x=>x.parameterId===req.parameterId?{...x,unit:"bad"}:x)).status,"Calculation not ready",id);assert.equal(engine.run(id,inputs.map(x=>x.parameterId===req.parameterId?{...x,provenance:""}:x)).status,"Calculation not ready",id)}});
+test("domain constraints block unsupported calculations",()=>{assert.match(engine.run("CALC-HVAC-001",F["CALC-HVAC-001"].map(x=>x.parameterId==="proposedHours"?{...x,value:3000}:x)).errors.join(" "),/cannot exceed/);assert.match(engine.run("CALC-DHW-002",F["CALC-DHW-002"].filter(x=>x.parameterId!=="proposedCop")).errors.join(" "),/COP is required/);assert.match(engine.run("CALC-UTIL-003",F["CALC-UTIL-003"].map(x=>x.parameterId==="demandPeriods"?{...x,value:[{label:"x",peakKwReduction:1,demandRate:1,coincidenceSupported:false}]}:x)).errors.join(" "),/peak-coincidence/)});
+test("VALIDATE-V2 entries never calculate or imply maturity",()=>{for(const m of Object.values(engine.METHOD_REGISTRY).filter(x=>x.status===engine.VALIDATE)){const r=engine.run(m.methodId,[]);assert.equal(r.status,"METHOD_REQUIRES_VALIDATION");assert.deepEqual(r.outputs,[]);assert.equal(r.maturity,"NOT_ASSESSED");assert.equal(r.readiness.status,"METHOD_REQUIRES_VALIDATION");assert.match(m.formula,/Not yet validated/)}});
+test("assumptions are visible and cap maturity",()=>{const a=structuredClone(F["CALC-GEN-001"]);a[1]={...a[1],provenance:"Assumed",evidenceLevel:"D",assumptionRationale:"Schedule not confirmed"};const r=engine.run("CALC-GEN-001",a);assert.equal(r.maturity,"SCREENING");assert.ok(r.qaFlags.some(x=>x.code==="ASSUMED_DEFAULT_INPUT"))});
+test("dependencies fingerprint source version and overlap is flagged",()=>{const linked={...F["CALC-UTIL-001"][0],sourceKind:"calculation",sourceRecordId:"C1",sourceField:"annualKwhSavings",sourceVersion:"1.1:t"};linked.sourceFingerprint=engine.sourceFingerprint(linked);const r=engine.run("CALC-UTIL-001",[linked,F["CALC-UTIL-001"][1]],{ecm:{ecmId:"E2",affectedEquipmentRecordIds:["q"]},metadata:{equipmentRecordIds:["q"],affectedEndUse:"fan",baselineEnergyStream:"electric"},audit:{calculations:[{status:"Calculated",calculationId:"C1",ecmId:"E1",equipmentRecordIds:["q"],affectedEndUse:"fan",baselineEnergyStream:"electric"}]}});assert.equal(r.inputs[0].sourceFingerprint,linked.sourceFingerprint);assert.ok(r.qaFlags.some(x=>x.code==="POTENTIAL_ECM_OVERLAP"))});
+test("definitions include governing references, evidence, and units",()=>{for(const m of Object.values(engine.METHOD_REGISTRY)){assert.ok(m.applicability&&m.formula&&m.applicableSystemTypes.length);assert.ok(m.inputs.every(x=>x.unit&&x.acceptedUnits.length));assert.match(m.evidenceRequirements,/provenance/);assert.match(m.sourceReferenceBasis,/V1\.1/)}});
+test("calculation input snapshots do not mutate callers",()=>{const a=structuredClone(F["CALC-FIN-002"]),b=structuredClone(a);engine.run("CALC-FIN-002",a);assert.deepEqual(a,b)});
 

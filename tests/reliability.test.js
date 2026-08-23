@@ -471,10 +471,12 @@ test("concise workflow status uses existing completeness without changing it",()
   assert.equal(result.status.label,"Missing Critical Data");
 });
 
-test("V4 exposes approved engineering analysis without unrelated formula families",()=>{
+test("V4.1 exposes the full approved calculation registry and validation-only families",()=>{
   assert.match(htmlSource,/Engineering Calculation/);
   assert.match(appSource,/function runAndSaveCalculation/);
-  assert.doesNotMatch(calculationSource,/pump|boiler|chiller|heat pump/i);
+  assert.match(calculationSource,/CALC-PUMP-001/);
+  assert.match(calculationSource,/CALC-BLR-001/);
+  assert.match(calculationSource,/METHOD_REQUIRES_VALIDATION/);
 });
 
 test("equipment display-ID rename preserves calculation link and does not make its value source stale",()=>{
@@ -503,6 +505,30 @@ test("changing a linked source value marks a calculation as needing recalculatio
   })()`,context);
   assert.equal(result.status,"Needs Recalculation");
   assert.ok(result.staleAt);
+});
+
+test("staleness propagates through a reversed dependency chain",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`(()=>{
+    const upstreamInput={parameterId:"baselineKw",value:10,unit:"kW",provenance:"Measured",evidenceLevel:"A",sourceKind:"equipment",sourceRecordId:"eq-1",equipmentRecordId:"eq-1",sourceField:"quantity"};
+    upstreamInput.sourceFingerprint=AudistCalculations.sourceFingerprint(upstreamInput);
+    const downstreamInput={parameterId:"annualKwhSavings",value:1000,unit:"kWh/yr",provenance:"Calculated",evidenceLevel:"A",sourceKind:"calculation",sourceRecordId:"C1",sourceField:"annualKwhSavings",sourceVersion:"1.1:old"};
+    downstreamInput.sourceFingerprint=AudistCalculations.sourceFingerprint(downstreamInput);
+    currentAudit={equipment:[{recordId:"eq-1",quantity:11,fieldProvenance:{quantity:"Measured"},measurements:[]}],utility:{},ecms:[],calculations:[
+      {calculationId:"C2",status:"Calculated",inputs:[downstreamInput],outputs:[]},
+      {calculationId:"C1",methodVersion:"1.1",updatedAt:"old",status:"Calculated",inputs:[upstreamInput],outputs:[{parameterId:"annualKwhSavings",value:1000,unit:"kWh/yr"}]}
+    ]};
+    refreshCalculationStaleness();return currentAudit.calculations.map(x=>x.status);
+  })()`,context);
+  assert.deepEqual([...result],["Needs Recalculation","Needs Recalculation"]);
+});
+
+test("recalculation revision preserves a stale prior result",()=>{
+  const context=loadApp();
+  const revision=vm.runInContext(`createCalculationRevision({methodId:"CALC-GEN-001",methodVersion:"1.0",status:"Needs Recalculation",inputs:[{value:1}],outputs:[{value:100}],evidenceLevel:"A",maturity:"ENGINEERING_ESTIMATE",calculatedAt:"2026-01-01",staleAt:"2026-01-02"})`,context);
+  assert.equal(revision.status,"Needs Recalculation");
+  assert.equal(revision.outputs[0].value,100);
+  assert.equal(revision.staleAt,"2026-01-02");
 });
 
 test("ECM editing preserves calculation IDs and export-compatible complete calculation data",async()=>{

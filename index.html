@@ -13,7 +13,7 @@
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V4.0 • Offline-first</p>
+      <p id="header-status">V4.1 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -262,6 +262,18 @@
     <div class="dialog-head"><h3>Engineering Calculation</h3><button class="secondary icon" id="close-calculation">✕</button></div>
     <label>Approved Method<select id="calculation-method"></select></label>
     <div id="calculation-method-description" class="template-info"></div>
+    <details class="disclosure calculation-context" open>
+      <summary>Engineering Context</summary>
+      <label>Baseline — what currently exists/operates<textarea id="calculation-baseline" rows="2"></textarea></label>
+      <label>Proposed — what changes<textarea id="calculation-proposed" rows="2"></textarea></label>
+      <label>Affected Operation — what portion of operation changes<textarea id="calculation-operation" rows="2"></textarea></label>
+      <div class="calculation-source">
+        <label>Affected End Use<input id="calculation-end-use" placeholder="e.g. Supply fan electricity"></label>
+        <label>Baseline Energy Stream<input id="calculation-stream" placeholder="e.g. AHU-01 fan runtime"></label>
+        <label>Component Role<select id="calculation-component-role"><option>Primary direct savings</option><option>Secondary direct savings</option><option>Interactive effect</option><option>Utility cost</option><option>Financial analysis</option><option>Readiness only</option></select></label>
+        <label>Interaction Category<select id="calculation-interaction"><option>Independent</option><option>Potential overlap</option><option>Interactive effect</option><option>Mutually exclusive</option><option>Unknown</option></select></label>
+      </div>
+    </details>
     <div id="calculation-inputs"></div>
     <div id="calculation-readiness" class="status-panel"></div>
     <div class="actions sticky-actions">

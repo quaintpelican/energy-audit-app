@@ -1,119 +1,32 @@
-# Audist — Calculation Library
+# Calculation Library — V4.1
 
-## Purpose
-Define transparent, reproducible engineering methods used by ECMs. This file is intentionally conservative: methods should be added only when equations, units, assumptions, applicability, and limitations are defined well enough for professional review.
+The governing source is `ENGINEERING_CALCULATION_LIBRARY_CA.md` V1.1. `calculations.js` is the executable offline registry; it may implement only a method and status authorized by that library.
 
-## Calculation method standard
-Every approved method should include:
-- Method ID
-- Version
-- Purpose
-- Applicability
-- Required inputs and units
-- Optional inputs
-- Formula/method
-- Outputs and units
-- Assumptions
-- Limitations/warnings
-- Source/provenance requirements
-- ECM templates using the method
-- Test cases
+## Implemented `READY-V1` inventory (25)
 
-Calculated outputs should reference their inputs and preserve `methodId` and `methodVersion`.
+- General/electrical: `CALC-GEN-001`, `CALC-ELEC-001`, `CALC-ELEC-002`.
+- Lighting/HVAC/fans: `CALC-LTG-001`, `CALC-LTG-002`, `CALC-HVAC-001`, `CALC-FAN-001`, `CALC-FAN-002`.
+- Pumps/water/chiller/air: `CALC-PUMP-001`, `CALC-PUMP-002`, `CALC-WTR-001`, `CALC-CHW-001`, `CALC-AIR-001`, `CALC-AIR-002`.
+- Thermal/end use: `CALC-BLR-001`, `CALC-DHW-001`, `CALC-DHW-002`, `CALC-REF-001`, `CALC-CA-001`, `CALC-ENV-001`.
+- Utility/finance: `CALC-UTIL-001`, `CALC-UTIL-002`, `CALC-UTIL-003`, `CALC-FIN-001`, `CALC-FIN-002`.
 
----
+Each method has explicit applicability, formula, required/optional inputs, canonical units, output units, evidence policy, warnings, QA rules, and deterministic test cases. No implicit unit conversion, default efficiency, tariff, schedule, COP, weather profile, cost, or savings factor is used.
 
-## CALC-LTG-001 — Lighting Retrofit Energy Savings
-**Status:** initial method definition.
+## `VALIDATE-V2` registry/readiness inventory (11)
 
-Inputs:
-- existing fixture watts, W
-- proposed fixture watts, W
-- fixture quantity
-- annual operating hours, hr/yr
+`CALC-HVAC-002`, `CALC-HVAC-003`, `CALC-CTRL-001`, `CALC-CHW-002`, `CALC-REF-002`, `CALC-REF-003`, `CALC-FOOD-001`, `CALC-KV-001`, `CALC-PLUG-001`, `CALC-RCX-001`, and `CALC-FIN-003` are recognized but not numerically implemented. They expose applicable systems, required/recommended evidence, warnings, and readiness. Running one returns `METHOD_REQUIRES_VALIDATION` with no output and cannot be presented as savings.
 
-Method:
-```text
-Existing kW = Existing W × Quantity / 1000
-Proposed kW = Proposed W × Quantity / 1000
-Demand Reduction kW = Existing kW - Proposed kW
-Annual kWh Savings = Demand Reduction kW × Annual Operating Hours
-```
+## Components, dependencies, and interactions
 
-Outputs:
-- existing connected kW
-- proposed connected kW
-- demand reduction kW
-- annual kWh savings
+An ECM may contain multiple calculation components. Each component records the exact baseline and proposed condition, affected operation, end use, baseline energy stream, role, interaction category, stable equipment links, and upstream calculation IDs. Linked output fingerprints include upstream version/update state. A stale or missing upstream result propagates `Needs Recalculation` through the chain.
 
-Warnings:
-- Do not assume proposed wattage without a documented proposed fixture.
-- HVAC interactive effects are not included unless separately calculated.
-- Demand-bill savings require tariff/demand coincidence analysis.
+Direct savings, thermal interactions, demand effects, and economics remain separate components. The engine flags calculations on the same equipment/end-use/energy-stream across ECMs as potential overlap; it does not silently net or remove them. Recalculation saves prior calculated inputs and outputs in `revisionHistory[]`.
 
----
+## Maturity and evidence
 
-## CALC-FIN-001 — Simple Payback
-Inputs:
-- net implementation cost, $
-- annual cost savings, $/yr
+Every material input requires unit, provenance, evidence level, and a source/assumption description. Estimated or assumed inputs require rationale. Level D/assumed evidence caps maturity at `SCREENING`; direct evidence alone does not automatically imply high confidence. `VALIDATE-V2` entries with no evidence are `NOT_ASSESSED`.
 
-Method:
-```text
-Simple Payback (yr) = Net Implementation Cost / Annual Cost Savings
-```
+## Validation
 
-Warnings:
-- Undefined when annual savings ≤ 0.
-- Does not account for financing, escalation, discount rate, maintenance timing, or measure life.
-
----
-
-## Planned methods requiring engineering definition
-- CALC-FAN-001 Fan power / VFD affinity-law savings
-- CALC-PUMP-001 Pump power / affinity-law savings
-- CALC-SCH-001 HVAC schedule reduction
-- CALC-ECO-001 Economizer savings
-- CALC-HVAC-001 Cooling efficiency upgrade
-- CALC-HTG-001 Heating efficiency upgrade
-- CALC-DHW-001 Useful DHW load
-- CALC-DHW-002 DHW efficiency/fuel-switch savings
-- CALC-ENV-001 Envelope conductive heat transfer
-- CALC-UTIL-001 Blended utility-rate analysis
-- CALC-FIN-002 NPV
-- CALC-FIN-003 lifecycle savings
-
-## AI boundary
-AI may select, explain, review, and QA an approved method. It must not silently substitute an undocumented formula or invent missing inputs.
-
-
-
----
-
-# Calculation Library — V4.0 Phase 1
-
-The governing engineering policy and full validated library are in `ENGINEERING_CALCULATION_LIBRARY_CA.md` (California V1.1). The application follows its no-deemed-savings policy: no site input, savings percentage, runtime, load factor, cost, or performance value is supplied silently. Explicit estimates/assumptions retain their evidence and rationale; material Level D/default inputs cap maturity at `SCREENING`.
-
-## Implemented and automated-test validated
-
-- `CALC-GEN-001`: `kWh = kW × hr`; savings `(baseline kW − proposed kW) × hr`.
-- `CALC-ELEC-001`: single-phase `kW = V × A × PF / 1000`.
-- `CALC-ELEC-002`: balanced three-phase `kW = √3 × V × A × PF / 1000`.
-- `CALC-LTG-001`: explicit existing/proposed fixture watts × quantity and annual hours.
-- `CALC-LTG-002`: controlled lighting kW × avoided annual hours; no generic control factor.
-- `CALC-HVAC-001`: affected operating kW × avoided annual hours.
-- `CALC-FAN-001`: measured fan kW × annual hours.
-- `CALC-FAN-002`: bin-based affinity-law screening `P2=P1(N2/N1)^3`; never high-confidence by method alone.
-- `CALC-UTIL-001`: annual kWh savings × explicit applicable/blended energy rate.
-- `CALC-FIN-001`: net implementation cost / positive annual cost savings.
-
-Each registry definition declares ID/version, applicability, inputs, units, formula, outputs, warnings, evidence requirements, V1.1 source basis, and numerical-test reference.
-
-## Validated in the governing library but not implemented
-
-Other READY-V1 methods documented in the governing library remain reference material only. Their presence in documentation does not make them executable in V4.0.
-
-## Future
-
-Pump, water-side, chiller, boiler/DHW, compressed-air, envelope, HVAC interactive-effect, tariff-demand, incentive, lifecycle, and report calculations are out of scope for Phase 1. They require separate validation and release review before implementation.
+Run `npm test` in the application directory. The calculation suite exercises all 25 methods, known reference results, missing inputs, unit mismatch, provenance omission, domain constraints, immutable snapshots, overlap QA, dependency fingerprints, and the no-calculation contract for every validation-only entry.
 

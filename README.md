@@ -1,12 +1,12 @@
-# Audist — V4.0 Phase 1
+# Audist — V4.1 Full Engineering Library
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
-## V4.0 calculation release
+## V4.1 calculation release
 
-V4 adds a pure, versioned calculation registry for ten approved methods: `CALC-GEN-001`, `CALC-ELEC-001`, `CALC-ELEC-002`, `CALC-LTG-001`, `CALC-LTG-002`, `CALC-HVAC-001`, `CALC-FAN-001`, `CALC-FAN-002`, `CALC-UTIL-001`, and `CALC-FIN-001`.
+V4.1 implements all 25 `READY-V1` methods in the governing California V1.1 library. The registry covers general/electrical, lighting, HVAC schedule, fan and pump, water/chiller/air-side loads, boiler/DHW, refrigeration, compressed air, envelope, energy/TOU/demand cost, simple payback, and NPV. Eleven `VALIDATE-V2` entries are visible for field-readiness collection but always return `METHOD_REQUIRES_VALIDATION` and never generate savings.
 
-Every saved calculation contains the method/version, formula, exact input snapshot, units, provenance, evidence level, source references, assumptions, warnings, QA flags, outputs, maturity, ECM UUID, and stable equipment UUIDs. Source changes mark the result **Needs Recalculation**. Equipment display-ID renames do not break relationships.
+Every saved calculation contains the method/version, formula, exact input snapshot, units, provenance, evidence level, source references, assumptions, warnings, QA flags, outputs, maturity, explicit baseline/proposed/operation/end-use/energy-stream boundaries, ECM UUID, stable equipment UUIDs, dependencies, and prior revisions. Source changes propagate **Needs Recalculation** through dependency chains. Equipment display-ID renames do not break relationships.
 
 No deemed/default value is silently supplied. An auditor may explicitly enter an estimate or assumption, but it remains visible, produces QA review information, and Level D/default evidence cannot exceed `SCREENING` maturity.
 
@@ -20,7 +20,7 @@ V4 keeps audit schema version 4 and IndexedDB database version 3. Existing compl
 
 ## Test
 
-Run `npm test`. The suite includes deterministic numerical and validation coverage for all ten methods plus prior IndexedDB, autosave, photo, migration, relationship, rollback, and offline reliability tests.
+Run `npm test`. The suite includes deterministic and invalid-input coverage for all 25 methods, non-calculation checks for every `VALIDATE-V2` entry, and the prior IndexedDB, autosave, photo, migration, relationship, rollback, and offline reliability tests.
 
 ## iPhone release-candidate procedure
 
@@ -37,9 +37,10 @@ Run `npm test`. The suite includes deterministic numerical and validation covera
 
 ## Known limitations
 
-- V4.0 implements only the ten approved Phase 1 methods; pump, water-side, chiller, boiler/DHW, compressed-air, and envelope calculations remain future work.
-- Fan affinity-law results are capped below high-confidence maturity and require applicability review.
-- Results do not include HVAC interactive effects, billing demand, automatic incentives/costs, or report generation.
+- `VALIDATE-V2` methods collect readiness information only; their methodologies remain future engineering validation work.
+- Fan and pump affinity-law results remain screening/engineering estimates and require applicability review.
+- Interactive effects are separate components; the app flags likely overlap but does not automatically net competing ECMs.
+- No tariffs, incentives, escalation rates, equipment performance, or other engineering assumptions are supplied automatically.
 - Legacy embedded photos remain readable but JSON export does not package IndexedDB photo Blobs.
 
 Do not merge this feature branch to `main` until review and iPhone testing are complete.
