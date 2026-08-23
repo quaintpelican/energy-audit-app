@@ -1,5 +1,14 @@
 # Changelog
 
+## V5.1 End-Use & Whole-Building Reconciliation — release candidate
+
+- Added canonical manual `endUseModels[]` with stable UUID relationships, native utility units, provenance, evidence, maturity, basis, assumptions, hierarchy, source versions, and immediate serialized persistence.
+- Added conservative automatic assembly only from explicit calculated baseline-energy outputs; ECM savings are excluded from baseline assembly.
+- Added current-leaf aggregation, explicit utility residuals and signed/absolute reconciliation, centralized QA thresholds, present-system coverage, duplicate/stale/unit/weak-evidence flags, and ECM savings-to-end-use scale checks.
+- Added an Analysis Mode reconciliation summary, evidence-colored end-use chart, auditable detail panels, editable manual estimates, coverage review, and QA review.
+- Advanced the independent professional package to format 3 with `tables/end_uses.csv`, complete derived `endUseAnalysis`, manifest reconciliation summary, and stable relationship validation.
+- Retained audit schema 4, IndexedDB version 3, offline operation, GitHub Pages compatibility, and all V5.0 data without migration or rewrite.
+
 ## V5.0 Utility Analysis & Energy Baseline — release candidate
 
 - Added additive multi-account utility bills with stable UUIDs, declared source, explicit units, billing dates/days, demand, cost boundaries, estimated flags, and offline manual entry.

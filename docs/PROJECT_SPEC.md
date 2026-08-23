@@ -147,3 +147,7 @@ An experienced auditor can enter a facility with an iPhone, work offline, effici
 
 Utility bills are evidence of actual purchased energy, water, demand, and cost. V5.0 stores multiple accounts and bills without collapsing meter identity, inventing missing facts, or annualizing partial data. Derived metrics must be reproducible, use explicit units and provenance, require entered area for intensity metrics, and remain QA context rather than silently modifying ECM results. Offline, persistence, migration, and export protections apply equally to utility records.
 
+## V5.1 end-use reconciliation
+
+End-use energy must come from explicit baseline calculation outputs or auditor-entered, traceable estimates with evidence and assumptions. ECM savings must never be reclassified as baseline energy. Whole-building reconciliation must keep utility types in native units, exclude rollups from leaf totals, retain the signed difference and unassigned residual, and show gaps without scaling models. Partial/zero baselines cannot be reconciled. Duplicate membership, stale sources, missing major-system coverage, weak evidence, and savings larger than the applicable end use are visible QA—not silent corrections. See `END_USE_RECONCILIATION.md`.
+

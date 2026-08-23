@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="audist-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=5.0.0" />
+  <link rel="stylesheet" href="styles.css?v=5.1.0" />
   <title>Audist</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V4.3 • Offline-first</p>
+      <p id="header-status">V5.1 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -49,6 +49,17 @@
       <section class="card analysis-only hidden" id="analysis-queue-section">
         <div class="section-title"><div><h2>Analysis Queue</h2><p class="muted">Collect once → auto-bind → calculate later → never re-enter.</p></div><button class="secondary small" id="manage-groups-btn">Equipment Groups</button></div>
         <div id="analysis-queue" class="analysis-queue"></div>
+      </section>
+
+      <section class="card analysis-only hidden" id="end-use-section">
+        <div class="section-title"><div><h2>End-Use &amp; Reconciliation</h2><p class="muted">Utility bills are the reality check; modeled end uses explain them.</p></div><button class="secondary small" id="add-end-use-btn">+ Estimate</button></div>
+        <div id="reconciliation-summary" class="review-grid"></div>
+        <div id="end-use-chart" class="end-use-chart" aria-label="End-use breakdown chart"></div>
+        <div id="end-use-rollups" class="end-use-rollups"></div>
+        <div id="end-use-sources" class="end-use-rollups"></div>
+        <div id="end-use-list" class="list compact"></div>
+        <details class="disclosure"><summary>Major End-Use Coverage</summary><div id="end-use-coverage" class="list compact"></div></details>
+        <details class="disclosure"><summary>Reconciliation QA</summary><div id="end-use-qa" class="list compact"></div></details>
       </section>
 
       <section class="card field-only">
@@ -301,6 +312,27 @@
     <div class="actions"><button class="secondary" id="cancel-group">Cancel</button><button id="save-group">Save Group</button></div>
   </dialog>
 
+  <dialog id="end-use-dialog">
+    <div class="dialog-head"><h3>Manual End-Use Estimate</h3><button class="secondary icon" id="close-end-use">✕</button></div>
+    <input id="endUseId" type="hidden" />
+    <div class="grid">
+      <label>Utility Type<select id="endUseUtility"><option>Electricity</option><option>Natural Gas</option><option>Other Fuel</option></select></label>
+      <label>Category<select id="endUseCategory"></select></label>
+      <label>Subcategory (optional)<input id="endUseSubcategory" /></label>
+      <label>Annual Energy<input id="endUseEnergy" type="number" min="0" step="any" inputmode="decimal" /></label>
+      <label>Native Annual Unit<input id="endUseUnit" readonly /></label>
+      <label>Provenance<select id="endUseProvenance"><option>Measured</option><option>BAS / Trend</option><option>Calculated</option><option>Estimated</option><option>Assumed</option></select></label>
+      <label>Evidence Level<select id="endUseEvidence"><option>A</option><option>B</option><option>C</option><option>D</option></select></label>
+      <label>Maturity<select id="endUseMaturity"><option>ENGINEERING_ESTIMATE</option><option>SCREENING</option><option>HIGH_CONFIDENCE_ESTIMATE</option></select></label>
+    </div>
+    <label>Basis / Method<textarea id="endUseBasis" rows="2" placeholder="Representative inventory × supported operating schedule"></textarea></label>
+    <label>Explicit Assumption<textarea id="endUseAssumption" rows="2"></textarea></label>
+    <label>Related Systems<select id="endUseSystems" multiple size="5"></select></label>
+    <label>Related Equipment<select id="endUseEquipment" multiple size="6"></select></label>
+    <label>Source Baseline Calculations (optional)<select id="endUseCalculations" multiple size="5"></select><small class="muted">Only calculations with explicit baseline-energy outputs are listed. Savings outputs are excluded.</small></label>
+    <div class="actions"><button class="secondary" id="cancel-end-use">Cancel</button><button id="save-end-use">Save Estimate</button></div>
+  </dialog>
+
   <dialog id="calculation-dialog">
     <div class="dialog-head"><h3>Engineering Calculation</h3><button class="secondary icon" id="close-calculation">✕</button></div>
     <label>Approved Method<select id="calculation-method"></select></label>
@@ -325,11 +357,12 @@
     </div>
   </dialog>
 
-  <script src="db.js?v=5.0.0"></script>
-  <script src="calculations.js?v=5.0.0"></script>
-  <script src="utility-analysis.js?v=5.0.0"></script>
-  <script src="workflow.js?v=5.0.0"></script>
-  <script src="package-export.js?v=5.0.0"></script>
-  <script src="app.js?v=5.0.0"></script>
+  <script src="db.js?v=5.1.0"></script>
+  <script src="calculations.js?v=5.1.0"></script>
+  <script src="utility-analysis.js?v=5.1.0"></script>
+  <script src="end-use-analysis.js?v=5.1.0"></script>
+  <script src="workflow.js?v=5.1.0"></script>
+  <script src="package-export.js?v=5.1.0"></script>
+  <script src="app.js?v=5.1.0"></script>
 </body>
 </html>

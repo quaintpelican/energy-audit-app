@@ -7,6 +7,7 @@ const {webcrypto} = require("node:crypto");
 const appSource=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
 const calculationSource=fs.readFileSync(path.join(__dirname,"..","calculations.js"),"utf8");
 const utilitySource=fs.readFileSync(path.join(__dirname,"..","utility-analysis.js"),"utf8");
+const endUseSource=fs.readFileSync(path.join(__dirname,"..","end-use-analysis.js"),"utf8");
 const htmlSource=fs.readFileSync(path.join(__dirname,"..","index.html"),"utf8");
 
 function loadApp(){
@@ -38,6 +39,7 @@ function loadApp(){
   const source=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
   vm.runInContext(calculationSource,context,{filename:"calculations.js"});
   vm.runInContext(utilitySource,context,{filename:"utility-analysis.js"});
+  vm.runInContext(endUseSource,context,{filename:"end-use-analysis.js"});
   vm.runInContext(source,context,{filename:"app.js"});
   return context;
 }
@@ -329,6 +331,63 @@ test("overlapping saves serialize and persist the newest snapshot last",async()=
     await Promise.all([first,second]);
   })()`,context);
   assert.deepEqual(completed,["First","Second"]);
+});
+
+test("manual end-use estimate persists immediately with provenance and stable relationships",async()=>{
+  const context=loadApp(),persisted=[];
+  context.dbPutAudit=async audit=>{persisted.push(structuredClone(audit));return audit;};
+  await vm.runInContext(`(async()=>{
+    currentAudit={auditId:"audit-1",schemaVersion:4,site:{},utility:{months:[]},utilityAccounts:[],systems:[{systemRecordId:"sys-1",systemId:"LTG-1",systemType:"Lighting",status:"Present"}],equipment:[{recordId:"eq-1",equipmentId:"LTG-01",systemRecordId:"sys-1",systemType:"Lighting",measurements:[],photos:[]}],ecms:[],calculations:[],endUseModels:[],metadata:{}};
+    $("endUseId").value=""; $("endUseUtility").value="Electricity"; endUseCategories();
+    $("endUseCategory").value="Lighting"; $("endUseEnergy").value="90000";
+    $("endUseProvenance").value="Estimated"; $("endUseEvidence").value="C";
+    $("endUseMaturity").value="ENGINEERING_ESTIMATE"; $("endUseBasis").value="Fixture inventory × schedule";
+    $("endUseAssumption").value="3,000 operating hours";
+    $("endUseSystems").selectedOptions=[{value:"sys-1"}]; $("endUseEquipment").selectedOptions=[{value:"eq-1"}]; $("endUseCalculations").selectedOptions=[];
+    await saveEndUse();
+  })()`,context);
+  assert.equal(persisted.length,1);
+  const model=persisted[0].endUseModels[0];
+  assert.ok(model.endUseModelId);
+  assert.equal(model.annualEnergy,90000);
+  assert.equal(model.provenance,"Estimated");
+  assert.deepEqual(model.systemRecordIds,["sys-1"]);
+  assert.deepEqual(model.equipmentRecordIds,["eq-1"]);
+  assert.deepEqual(model.assumptions,["3,000 operating hours"]);
+});
+
+test("failed manual end-use creation rolls back and cannot leak into a later save",async()=>{
+  const context=loadApp(),persisted=[];let fail=true;
+  context.dbPutAudit=async audit=>{if(fail){fail=false;throw new Error("quota");}persisted.push(structuredClone(audit));return audit;};
+  await vm.runInContext(`(async()=>{
+    currentAudit={auditId:"audit-1",schemaVersion:4,site:{},utility:{months:[]},utilityAccounts:[],systems:[],equipment:[],ecms:[],calculations:[],endUseModels:[],metadata:{}};
+    $("endUseId").value=""; $("endUseUtility").value="Electricity"; endUseCategories();
+    $("endUseCategory").value="Other"; $("endUseEnergy").value="100"; $("endUseProvenance").value="Assumed";
+    $("endUseEvidence").value="D"; $("endUseMaturity").value="SCREENING"; $("endUseBasis").value="Site estimate"; $("endUseAssumption").value="Unverified";
+    $("endUseSystems").selectedOptions=[]; $("endUseEquipment").selectedOptions=[]; $("endUseCalculations").selectedOptions=[];
+    await saveEndUse();
+    currentAudit.site.facilityName="Later"; await saveCurrent();
+  })()`,context);
+  assert.equal(vm.runInContext("currentAudit.endUseModels.length",context),0);
+  assert.equal(persisted.at(-1).endUseModels.length,0);
+});
+
+test("end-use UUID relationships protect equipment and calculations from deletion",async()=>{
+  const context=loadApp(),alerts=[];context.alert=m=>alerts.push(m);
+  await vm.runInContext(`(async()=>{
+    currentAudit={auditId:"audit-1",schemaVersion:4,site:{},utility:{months:[]},utilityAccounts:[],systems:[],equipment:[{recordId:"eq-1",equipmentId:"EQ-1",measurements:[],photos:[]}],ecms:[],calculations:[{calculationId:"calc-1",status:"Calculated",outputs:[]}],endUseModels:[{endUseModelId:"eu-1",origin:"MANUAL",utilityType:"Electricity",category:"Other",annualEnergy:1,energyUnit:"kWh/yr",basis:"Test",assumptions:["Test"],systemRecordIds:[],equipmentRecordIds:["eq-1"],calculationIds:["calc-1"]}],metadata:{}};
+    await deleteEquipment("eq-1"); await deleteCalculation("calc-1");
+  })()`,context);
+  assert.equal(vm.runInContext("currentAudit.equipment.length",context),1);
+  assert.equal(vm.runInContext("currentAudit.calculations.length",context),1);
+  assert.match(alerts.join(" "),/end-use model/i);
+});
+
+test("editing an Other Fuel model retains its native unit",()=>{
+  const context=loadApp();
+  vm.runInContext(`currentAudit={auditId:"a",schemaVersion:4,site:{},systems:[],equipment:[],ecms:[],calculations:[],endUseModels:[{endUseModelId:"eu",utilityType:"Other Fuel",category:"Process",annualEnergy:10,energyUnit:"gallons/yr",basis:"Inventory",assumptions:["Test"],systemRecordIds:[],equipmentRecordIds:[],calculationIds:[]}],metadata:{}};openEndUse("eu");`,context);
+  assert.equal(context.__elements.get("endUseUnit").value,"gallons/yr");
+  assert.equal(context.__elements.get("endUseUnit").readOnly,false);
 });
 
 test("failed destructive persistence restores deleted equipment",async()=>{

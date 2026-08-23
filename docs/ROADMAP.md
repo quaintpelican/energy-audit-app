@@ -4,9 +4,9 @@
 
 Implemented: account/bill evidence, legacy conversion, completeness and QA flags, complete-period purchased-energy/cost baseline, EUI/demand intensity, normalized and seasonal views, baseload screening, derived rates, ECM scale QA, manual-entry UI, offline charts, and package-format-2 export. The explicit CSV parser/mapping layer is present; provider-specific mapping UI is deferred.
 
-## Recommended V5.1
+## V5.1 end-use reconciliation — release candidate
 
-Reconcile documented end-use estimates and ECM portfolios against the purchased-energy baseline with explicit boundaries and uncertainty. Weather normalization requires a separately specified and tested evidence, station-selection, regression-validation, and offline-data strategy.
+Implemented: canonical traceable end-use estimates, conservative automatic assembly from explicit baseline-energy calculation outputs, hierarchy/no-double-count controls, native-fuel aggregation, whole-building reconciliation with explicit residuals, major-system coverage, stale/duplicate/weak-evidence QA, ECM savings scale checks, Analysis Mode review, and package-format-3 export. No residual is allocated and no ECM savings output becomes baseline consumption.
 
 ## Completed baselines
 
@@ -32,4 +32,4 @@ Offline ZIP export containing canonical JSON, manifest integrity results, intero
 
 ## Future — requires separate approval
 
-Validate each `VALIDATE-V2` methodology, add field evidence, deterministic references, and independent release review before numerical implementation. Report generation, cloud sync, tariff automation, inferred grouping, and deemed/default savings remain outside V4.3.
+Validate each `VALIDATE-V2` methodology, add field evidence, deterministic references, and independent release review before numerical implementation. Weather normalization requires a separately specified and tested evidence, station-selection, regression-validation, and offline-data strategy. Report generation, cloud sync, tariff automation, inferred percentage disaggregation, hourly simulation, and deemed/default savings remain future work.

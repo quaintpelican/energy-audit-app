@@ -28,6 +28,7 @@ V4.2 retains `ENGINEERING_CALCULATION_LIBRARY_CA.md` as the governing calculatio
 
 - [PROFESSIONAL_AUDIT_PACKAGE.md](PROFESSIONAL_AUDIT_PACKAGE.md) — V4.3 ZIP structure, manifest, integrity, photo, CSV, versioning, and limitations.
 - [UTILITY_ANALYSIS.md](UTILITY_ANALYSIS.md) — V5.0 account/bill model, baseline calculations, completeness, QA/QC, export, and limitations.
+- [END_USE_RECONCILIATION.md](END_USE_RECONCILIATION.md) — V5.1 canonical end-use models, hierarchy, provenance, reconciliation formulas, QA, persistence, export, and limitations.
 
 
 

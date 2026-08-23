@@ -1,12 +1,12 @@
-# Audist — V5.0 Utility Analysis & Energy Baseline
+# Audist — V5.1 End-Use & Whole-Building Reconciliation
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
-V5.0 adds offline multi-account utility evidence, transparent complete-period baselines, EUI and demand intensity, data-quality flags, blended historic rates, ECM scale QA, and package-format-2 export while preserving the V4.3 professional workflow. See `docs/UTILITY_ANALYSIS.md`.
+V5.1 adds traceable end-use models, conservative assembly from explicit baseline calculations, whole-building reconciliation, residual and evidence QA, system coverage, and package-format-3 export while preserving the V5.0 utility baseline. It never converts ECM savings into baseline consumption or forces modeled energy to match bills. See `docs/END_USE_RECONCILIATION.md`.
 
 ## Portable audit package
 
-**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 2, record/photo/utility counts, summarized utility analysis, warnings, errors, and integrity status. A referenced photo that cannot be packaged is always `FAIL`.
+**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 3, record/photo/utility/end-use counts, summarized utility and reconciliation analysis, warnings, errors, and integrity status. A referenced photo that cannot be packaged is always `FAIL`.
 
 The export is read-only. Current IndexedDB photo Blobs are processed sequentially without base64 conversion; legacy embedded data URLs remain exportable. The package uses sanitized human-readable paths while stable UUIDs remain authoritative. iPhone Web Share is used when file sharing is supported, with a standard download fallback.
 
@@ -24,9 +24,15 @@ Every saved calculation contains the method/version, formula, exact input snapsh
 
 No deemed/default value is silently supplied. An auditor may explicitly enter an estimate or assumption, but it remains visible, produces QA review information, and Level D/default evidence cannot exceed `SCREENING` maturity.
 
+## V5.1 reconciliation model
+
+Manual end-use models require a site-specific basis and explicit assumption, retain provenance/evidence/maturity, link through stable UUIDs, save immediately, and roll back on failed persistence. Calculated baseline outputs may create automatic models; savings outputs are explicitly excluded. Only current leaf records aggregate, utility types stay in native units, and incomplete utility years do not produce reconciliation.
+
+Analysis Mode shows modeled energy, utility baseline, unassigned residual, signed/absolute gap, evidence-colored end uses, major-system coverage, stale/duplicate/weak-evidence QA, and ECM savings scale flags. See `docs/END_USE_RECONCILIATION.md` for exact formulas and limitations.
+
 ## Storage and migration
 
-V5.0 keeps audit schema version 4 and IndexedDB database version 3. `utilityAccounts[]` is additive and optional. Legacy monthly data is copied conservatively into accounts; empty V4.x audits are not rewritten merely by opening them. Existing evidence, migration-backup, unresolved-reference, and DB-v3 rollback protections remain in force.
+V5.1 keeps audit schema version 4 and IndexedDB database version 3. `endUseModels[]` is additive and optional, so existing V5.0 audits require no migration and are not rewritten merely by opening them. Existing evidence, utility, migration-backup, unresolved-reference, and DB-v3 rollback protections remain in force.
 
 ## Offline behavior and export
 
@@ -34,20 +40,22 @@ V5.0 keeps audit schema version 4 and IndexedDB database version 3. `utilityAcco
 
 ## Test
 
-Run `npm test`. The suite includes workflow timing, recipe, source-priority/conflict, source reuse, sampling, field/analysis readiness, queue, and export-readiness tests in addition to all V4.1 calculation and reliability coverage.
+Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-double-counting, native-fuel separation, baseline-vs-savings assembly, stale/duplicate/coverage/evidence/ECM QA, manual persistence/rollback, package export, workflow, calculations, IndexedDB, photos, migration, and reliability coverage.
 
 ## iPhone release-candidate procedure
 
-1. Open the V5.0 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
+1. Open the V5.1 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
 2. Create/open a test audit containing two systems, two equipment records, measurements, a utility month, an ECM, and a saved calculation.
 3. Capture an Overview and Nameplate photo, background the app immediately, relaunch, and confirm both photos remain visible.
 4. Turn on Airplane Mode, fully close the Home Screen app, relaunch, and choose **Export Audit Package**.
 5. Confirm progress advances through validation, photos, ZIP building, and verification. Confirm the result counts match the audit and integrity is `PASS` (or shows every intentional warning).
 6. Tap **Save / Share Package**, save to Files, and confirm the filename ends `_Audist.zip`.
-7. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all six files under `tables/`, and every expected image under `photos/` open normally.
-8. Verify `manifest.json` reports `packageFormatVersion: 2`, matching utility/photo counts, a utility-analysis summary, and `photosReferenced == photosExported`.
-9. Verify a CSV containing commas/notes opens with intact columns and that `audit.json` retains UUIDs, provenance, readiness, calculations, dependencies, assumptions, QA flags, and photo package paths.
-10. Return to Audist and confirm the audit, calculations, and photos are unchanged. Delete one test photo Blob only in a disposable browser test environment, export again, and confirm integrity is `FAIL`, never a warning/pass.
+7. In Analysis Mode, add a manual Lighting estimate with a basis, assumption, evidence level, and stable system/equipment links. Background and relaunch; verify it persists.
+8. Confirm modeled electricity, utility baseline, residual, signed/absolute gap, coverage, and QA are understandable. Deliberately model more than the baseline and confirm Audist flags it without changing the entered value.
+9. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all seven files under `tables/` including `end_uses.csv`, and every expected image under `photos/` open normally.
+10. Verify `manifest.json` reports `packageFormatVersion: 3`, matching utility/end-use/photo counts, utility and reconciliation summaries, and `photosReferenced == photosExported`.
+11. Verify a CSV containing commas/notes opens with intact columns and that `audit.json` retains UUIDs, provenance, end-use sources, reconciliation residuals, readiness, calculations, dependencies, assumptions, QA flags, and photo package paths.
+12. Return to Audist and confirm the audit, calculations, estimates, and photos are unchanged. Delete one test photo Blob only in a disposable browser test environment, export again, and confirm integrity is `FAIL`, never a warning/pass.
 
 ### Existing calculation and migration regression
 
@@ -67,6 +75,7 @@ Run `npm test`. The suite includes workflow timing, recipe, source-priority/conf
 - `VALIDATE-V2` methods collect readiness information only; their methodologies remain future engineering validation work.
 - Fan and pump affinity-law results remain screening/engineering estimates and require applicability review.
 - Interactive effects are separate components; the app flags likely overlap but does not automatically net competing ECMs.
+- Reconciliation does not weather-normalize, infer percentage disaggregation, allocate residuals, or perform hourly simulation.
 - No tariffs, incentives, escalation rates, equipment performance, or other engineering assumptions are supplied automatically.
 - Legacy embedded photos remain readable but JSON export does not package IndexedDB photo Blobs.
 
