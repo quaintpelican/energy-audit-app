@@ -1,5 +1,13 @@
 # Audist Roadmap
 
+## V6.1 AI-assisted engineering review — release candidate
+
+- Versioned, local AI review request and standardized engineering-review instructions.
+- Strict whole-response import validation with wrong-audit, schema, duplicate-ID, unknown-reference, and unsupported-property rejection.
+- Historical advisory reviews, engineer dispositions, engineering-fingerprint staleness, and explicit AI-candidate-to-normal-ECM acceptance.
+- Analysis Mode review UI and professional package format 7 AI review artifacts/CSV.
+- No API, backend, automatic transmission, paid dependency, factual edits, deterministic QA changes, or report generation.
+
 ## V6.0 deterministic audit QA/QC — release candidate
 
 - Versioned local rule registry and stable finding lifecycle.

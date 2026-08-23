@@ -1,8 +1,10 @@
-# Audist — V6.0 Deterministic Audit QA/QC
+# Audist — V6.1 AI-Assisted Engineering Review
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
 V6.0 adds a local, deterministic whole-audit QA/QC engine without changing the V5.3 calculation boundary. Versioned rules identify data-integrity, field, measurement, photo, utility, calculation, provenance, end-use, ECM, portfolio, economics, export, and report-readiness issues without inventing or silently correcting engineering data.
+
+V6.1 adds an optional local review protocol after deterministic QA: prepare a versioned request and instructions, review them with an authorized external AI service, and import only a strictly validated JSON response. Audist makes no AI API call and never writes AI advice into factual evidence or deterministic calculations/QA.
 
 Analysis Mode now groups findings by severity/category, exposes evidence and recommended action, supports explicit engineer review or accepted-limitations notes, and reports whole-audit readiness. Field Exit Review receives only onsite-relevant blocker/high findings.
 
@@ -38,7 +40,7 @@ Analysis Mode shows modeled energy, utility baseline, unassigned residual, signe
 
 ## Storage and migration
 
-V6.0 keeps audit schema version 4 and IndexedDB database version 3. Optional QA declarations and finding dispositions are additive; existing audits require no migration or rewrite. Professional package format 6 adds `auditQa`, a manifest QA summary, and `tables/qa_findings.csv` while keeping package integrity independent.
+V6.1 keeps audit schema version 4 and IndexedDB database version 3. Optional AI reviews/exports are additive; existing audits require no migration or rewrite. Professional package format 7 adds the AI request, standardized instructions, imported review history, manifest summary, and `tables/ai_review_findings.csv` while keeping AI review optional and separate.
 
 ## Offline behavior and export
 
@@ -50,7 +52,7 @@ Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-
 
 ## iPhone release-candidate procedure
 
-1. Open the V5.3 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
+1. Open the V6.1 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
 2. Create/open a test audit containing two systems, two equipment records, measurements, a utility month, an ECM, and a saved calculation.
 3. Capture an Overview and Nameplate photo, background the app immediately, relaunch, and confirm both photos remain visible.
 4. Turn on Airplane Mode, fully close the Home Screen app, relaunch, and choose **Export Audit Package**.
@@ -59,7 +61,7 @@ Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-
 7. In Analysis Mode, add a manual Lighting estimate with a basis, assumption, evidence level, and stable system/equipment links. Background and relaunch; verify it persists.
 8. Confirm modeled electricity, utility baseline, residual, signed/absolute gap, coverage, and QA are understandable. Deliberately model more than the baseline and confirm Audist flags it without changing the entered value.
 9. Create a Recommended Portfolio with two overlapping ECMs. Confirm the interaction, enter the shared baseline, and set sequence. Verify standalone and adjusted values remain separately visible.
-10. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all ten files under `tables/` including `qa_findings.csv`, and every expected image under `photos/` open normally.
+10. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all eleven files under `tables/` including QA and AI review findings, `ai_review/` request/instructions/reviews, and every expected image under `photos/` open normally.
 11. Verify `manifest.json` reports `packageFormatVersion: 5`, matching portfolio, weather, manufacturer-performance, RCx, and photo counts.
 12. Verify a CSV containing commas/notes opens with intact columns and that `audit.json` retains UUIDs, provenance, end-use sources, portfolio inclusion/sequence/interactions, standalone and adjusted results, assumptions, QA flags, and photo package paths.
 13. Return to Audist and confirm the audit, calculations, portfolios, estimates, and photos are unchanged. Delete one test photo Blob only in a disposable browser test environment, export again, and confirm integrity is `FAIL`, never a warning/pass.

@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="audist-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=6.0.0" />
+  <link rel="stylesheet" href="styles.css?v=6.1.0" />
   <title>Audist</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V6.0 • Offline-first</p>
+      <p id="header-status">V6.1 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -57,6 +57,15 @@
         <div class="actions"><button class="secondary small" id="confirm-field-review-btn">Confirm Field Scope Review</button><button class="secondary small" id="confirm-analysis-review-btn">Confirm Analysis Scope Review</button></div>
         <div id="audit-qa-categories" class="list compact"></div>
         <details class="disclosure"><summary>Review Findings</summary><div id="audit-qa-findings" class="list compact"></div></details>
+      </section>
+
+      <section class="card analysis-only hidden" id="ai-review-section">
+        <div class="section-title"><div><h2>AI Engineering Review</h2><p class="muted">Advisory external review remains separate from deterministic QA and source evidence.</p></div></div>
+        <div class="privacy-notice">This package may contain confidential facility information. Only share it with an AI/service you are authorized to use. Audist does not transmit it.</div>
+        <div class="actions"><button id="prepare-ai-review-btn">Prepare AI Review</button><button class="secondary" id="copy-ai-instructions-btn">Copy Instructions</button><button class="secondary" id="import-ai-review-btn">Import AI Review</button><input class="hidden" id="ai-review-input" type="file" accept="application/json,.json" /></div>
+        <p class="muted">1. Upload the prepared request and instructions to ChatGPT. 2. Ask for the required JSON response. 3. Save the response. 4. Import it here.</p>
+        <div id="ai-review-summary" class="review-grid"></div>
+        <div id="ai-review-list" class="list compact"></div>
       </section>
 
       <section class="card analysis-only hidden" id="end-use-section">
@@ -385,15 +394,16 @@
     </div>
   </dialog>
 
-  <script src="db.js?v=6.0.0"></script>
-  <script src="calculations.js?v=6.0.0"></script>
-  <script src="utility-analysis.js?v=6.0.0"></script>
-  <script src="end-use-analysis.js?v=6.0.0"></script>
-  <script src="portfolio-analysis.js?v=6.0.0"></script>
-  <script src="advanced-analysis.js?v=6.0.0"></script>
-  <script src="workflow.js?v=6.0.0"></script>
-  <script src="qa-rules.js?v=6.0.0"></script>
-  <script src="package-export.js?v=6.0.0"></script>
-  <script src="app.js?v=6.0.0"></script>
+  <script src="db.js?v=6.1.0"></script>
+  <script src="calculations.js?v=6.1.0"></script>
+  <script src="utility-analysis.js?v=6.1.0"></script>
+  <script src="end-use-analysis.js?v=6.1.0"></script>
+  <script src="portfolio-analysis.js?v=6.1.0"></script>
+  <script src="advanced-analysis.js?v=6.1.0"></script>
+  <script src="workflow.js?v=6.1.0"></script>
+  <script src="qa-rules.js?v=6.1.0"></script>
+  <script src="ai-review.js?v=6.1.0"></script>
+  <script src="package-export.js?v=6.1.0"></script>
+  <script src="app.js?v=6.1.0"></script>
 </body>
 </html>

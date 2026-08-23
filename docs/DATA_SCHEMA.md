@@ -12,6 +12,8 @@ V5.3 adds optional `weatherDatasets[]`, `manufacturerPerformanceDatasets[]`, and
 
 V6.0 keeps audit schema version 4 and IndexedDB version 3. It adds optional `qaDeclarations { fieldScopeReviewed, fieldScopeReviewedAt, analysisScopeReviewed, analysisScopeReviewedAt, utilityAnalysisNotRequired }` and `qaFindingStates[]`. Each state retains `findingId`, status, rule/version/category/severity/title snapshot, engineer note, and `updatedAt`. Missing collections default safely in memory; existing audits require no destructive migration or rewrite. Generated `auditQa` is an export/analysis snapshot, not a second editable source of truth.
 
+V6.1 retains audit schema 4 and IndexedDB version 3 and adds optional `aiReviews[]` and `aiReviewExports[]`. Review schema version 1 is independent. Each imported review preserves source audit ID/time/fingerprint, reviewer/model, summary, structured findings and dispositions, suggested ECM candidates and dispositions, calculation reviews, data-quality/report notes, timestamps, and status. These are advisory records. Accepted candidates create ordinary ECMs with `origin`, `sourceAiReviewId`, and `sourceCandidateId`; no AI object is merged into factual records. Existing audits require no migration or rewrite.
+
 ## Workflow additions
 
 - `equipmentGroups[]`: `groupId`, name, stable `equipmentRecordIds[]`, optional explicit `sampling` (`populationSize`, `sampleSize`, sampled UUIDs, confirmation timestamp, Estimated provenance, evidence level C), and creation timestamp.

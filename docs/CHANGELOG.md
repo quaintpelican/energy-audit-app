@@ -1,5 +1,14 @@
 # Changelog
 
+## V6.1 AI-Assisted Engineering Review — release candidate
+
+- Added local `Export → external AI review → validated structured import`; Audist transmits nothing and has no AI API dependency.
+- Added review schema 1, standardized instructions, strict response validation, record-reference enforcement, and all-or-nothing import.
+- Added historical advisory reviews, finding dispositions/notes, engineering-fingerprint staleness, and explicit candidate-to-normal-ECM acceptance without invented values.
+- Added a visually distinct Analysis Mode AI review section while preserving deterministic QA/readiness authority.
+- Advanced the professional package to format 7 with AI request/instructions, historical review JSON, manifest summary, and `ai_review_findings.csv`.
+- Retained audit schema 4, IndexedDB version 3, offline field operation, and all prior migration/rollback behavior.
+
 ## V6.0 Deterministic Audit QA/QC — release candidate
 
 - Added a versioned registry of 58 deterministic QA/QC rules spanning 13 engineering categories.

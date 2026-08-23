@@ -1,5 +1,5 @@
 {
-  "name": "audist-v6-0-audit-qaqc-tests",
+  "name": "audist-v6-1-ai-engineering-review-tests",
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.js"

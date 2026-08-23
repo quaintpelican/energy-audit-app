@@ -163,3 +163,7 @@ Advanced calculations require explicit physical/control models and adequate fiel
 ## V6.0 deterministic QA/QC principle
 
 Whole-audit QA/QC must be explainable, versioned, deterministic, and non-mutating. A rule may identify missing, inconsistent, implausible, stale, or untraceable evidence, but it must not invent or silently correct data. Finding identity must remain stable across save/reload for the same rule and affected records. Engineer dispositions require explicit evidence; corrected conditions auto-clear. Report readiness is advisory and separate from export-package integrity. See `QA_QC_SPEC.md`.
+
+## V6.1 AI engineering-review principle
+
+**AI reviews the engineering record; it does not become the engineering record.** AI operates only after deterministic calculations and QA/QC through a local export and strictly validated import. It cannot alter facts, calculations, savings, costs, provenance, evidence, maturity, deterministic findings, or readiness. AI observations and candidate ECMs remain advisory until explicitly dispositioned by an engineer. No API, backend, authentication, automatic transmission, paid dependency, or report generation is part of V6.1. See `AI_ENGINEERING_REVIEW_SPEC.md`.
