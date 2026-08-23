@@ -1,10 +1,11 @@
-const APP_VERSION = "5.1";
+const APP_VERSION = "5.2";
 const SCHEMA_VERSION = 4;
 const CALC_ENGINE = globalThis.AudistCalculations;
 const WORKFLOW = globalThis.AudistWorkflow;
 const PACKAGE_EXPORT = globalThis.AudistPackageExport;
 const UTILITY_ANALYSIS = globalThis.AudistUtilityAnalysis;
 const END_USE_ANALYSIS = globalThis.AudistEndUseAnalysis;
+const PORTFOLIO_ANALYSIS = globalThis.AudistPortfolioAnalysis;
 
 let currentAudit = null;
 let activeMode="field";
@@ -262,7 +263,7 @@ function blankAudit(){
     equipment:[],
     ecms:[],
     calculations:[],equipmentGroups:[],
-    endUseModels:[],
+    endUseModels:[],ecmPortfolios:[],
     metadata:{app:"Audist", appVersion:APP_VERSION, storage:"IndexedDB", intendedStandard:"ASHRAE Level 2 support"}
   };
 }
@@ -455,6 +456,10 @@ function validateAuditStructure(audit){
     if(!Array.isArray(model.equipmentRecordIds)||model.equipmentRecordIds.some(id=>!recordIds.includes(id))) errors.push(`End-use model ${model.endUseModelId||"(unknown)"} references missing equipment.`);
     if(!Array.isArray(model.calculationIds)||model.calculationIds.some(id=>!calculationIds.includes(id))) errors.push(`End-use model ${model.endUseModelId||"(unknown)"} references a missing calculation.`);
   });
+  if(audit?.ecmPortfolios!==undefined&&!Array.isArray(audit.ecmPortfolios)) errors.push("ecmPortfolios must be an array.");
+  const portfolioIds=(audit?.ecmPortfolios||[]).map(p=>p.portfolioId),ecmIdSet=new Set((audit?.ecms||[]).map(e=>e.ecmId));
+  if(portfolioIds.some(id=>!String(id||"").trim())||new Set(portfolioIds).size!==portfolioIds.length) errors.push("Portfolio IDs must be present and unique.");
+  (audit?.ecmPortfolios||[]).forEach(p=>{if(!Array.isArray(p.ecmIds)||p.ecmIds.some(id=>!ecmIdSet.has(id)))errors.push(`Portfolio ${p.portfolioId||"(unknown)"} references a missing ECM.`);if(!Array.isArray(p.sequence)||p.sequence.some(id=>!p.ecmIds.includes(id)))errors.push(`Portfolio ${p.portfolioId||"(unknown)"} has an invalid sequence.`);(p.interactionRecords||[]).forEach(r=>{if(!PORTFOLIO_ANALYSIS?.INTERACTION_TYPES.includes(r.interactionType)||(r.ecmIds||[]).some(id=>!p.ecmIds.includes(id)))errors.push(`Portfolio ${p.portfolioId||"(unknown)"} has an invalid interaction.`);});});
   if(errors.length) throw new Error(`Migration validation failed: ${errors.join(" ")}`);
   return true;
 }
@@ -1363,8 +1368,8 @@ function renderEcmCalculations(){
 function openEcm(ecmId=null){
   editingEcmId=ecmId;
   const existing=ecmId?currentAudit.ecms.find(e=>e.ecmId===ecmId):null;
-  ["ecmTitle","ecmExisting","ecmProposed","ecmMissing"].forEach(id=>$(id).value="");
-  $("ecmCategory").value="HVAC"; $("ecmConfidence").value="Medium";
+  ["ecmTitle","ecmExisting","ecmProposed","ecmMissing","ecmOptionGroup"].forEach(id=>$(id).value="");
+  $("ecmCategory").value="HVAC"; $("ecmConfidence").value="Medium"; $("ecmRecommendation").value="Candidate";
 
   const select=$("ecmEquipment");
   if(select.tagName==="SELECT"){
@@ -1380,6 +1385,8 @@ function openEcm(ecmId=null){
     $("ecmProposed").value=existing.proposedImprovement||"";
     $("ecmMissing").value=existing.missingData||"";
     $("ecmConfidence").value=existing.confidence||"Medium";
+    $("ecmRecommendation").value=existing.recommendationStatus||"Candidate";
+    $("ecmOptionGroup").value=existing.optionGroupId||"";
     $("ecm-template").value=existing.templateKey||"";
   }else{
     const key=$("ecm-template").value;
@@ -1431,6 +1438,8 @@ async function saveEcm(){
     proposedImprovement:$("ecmProposed").value,
     missingData:$("ecmMissing").value,
     confidence:$("ecmConfidence").value,
+    recommendationStatus:$("ecmRecommendation").value,
+    optionGroupId:$("ecmOptionGroup").value.trim()||null,
     templateKey:$("ecm-template").value||null,
     analysisRecipe:WORKFLOW?.RECIPES[$("ecm-template").value]?{methodIds:[...WORKFLOW.RECIPES[$("ecm-template").value]],createdFromTemplate:$("ecm-template").value,updatedAt:nowISO()}:null
   };
@@ -1459,6 +1468,8 @@ async function saveEcm(){
   }else rollback();
 }
 async function deleteEcm(id){
+  const linkedPortfolios=(currentAudit.ecmPortfolios||[]).filter(p=>(p.ecmIds||[]).includes(id));
+  if(linkedPortfolios.length){alert(`This ECM belongs to ${linkedPortfolios.length} portfolio(s). Remove it from those portfolios before deleting it.`);return;}
   const linkedCalculations=(currentAudit.calculations||[]).filter(calculation=>calculation.ecmId===id);
   if(linkedCalculations.length){alert(`This ECM has ${linkedCalculations.length} calculation record(s). Delete those calculations before deleting the ECM.`);return;}
   if(!confirm("Delete this ECM?")) return;
@@ -1488,13 +1499,22 @@ function renderEndUseRollups(){if(!END_USE_ANALYSIS)return;const analysis=END_US
 
 function renderEndUseSources(){if(!END_USE_ANALYSIS)return;const models=END_USE_ANALYSIS.activeLeafModels(END_USE_ANALYSIS.models(currentAudit)),fmt=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:1}),equipment=new Map((currentAudit.equipment||[]).map(e=>[e.recordId,e.equipmentId])),systems=new Map((currentAudit.systems||[]).map(s=>[s.systemRecordId,s.name||s.systemId||s.systemType])),subtotals={};for(const m of models){const key=`${m.utilityType}|${m.energyUnit}|${m.category}|${m.subcategory||"(all)"}`;subtotals[key]=(subtotals[key]||0)+Number(m.annualEnergy||0);}const subtotalRows=Object.entries(subtotals).map(([key,value])=>{const [type,unit,category,subcategory]=key.split("|");return `<tr><td>${escapeHtml(type)}</td><td>${escapeHtml(category)} / ${escapeHtml(subcategory)}</td><td>${fmt(value)} ${escapeHtml(unit)}</td></tr>`;}),sourceRows=models.map(m=>`<tr><td>${escapeHtml(m.category)}${m.subcategory?` / ${escapeHtml(m.subcategory)}`:""}</td><td>${(m.calculationIds||[]).map(escapeHtml).join(", ")||"Manual"}</td><td>${(m.systemRecordIds||[]).map(id=>escapeHtml(systems.get(id)||id)).join(", ")||"—"}</td><td>${(m.equipmentRecordIds||[]).map(id=>escapeHtml(equipment.get(id)||id)).join(", ")||"—"}</td></tr>`);$("end-use-sources").innerHTML=models.length?`<details class="disclosure"><summary>Subcategory totals &amp; source relationships</summary><h4>By subcategory</h4><table><tbody>${subtotalRows.join("")}</tbody></table><h4>Traceability</h4><table><thead><tr><th>End use</th><th>Calculation</th><th>System</th><th>Equipment</th></tr></thead><tbody>${sourceRows.join("")}</tbody></table></details>`:"";}
 
+function portfolioInteractionKey(r){return [...(r.ecmIds||[])].sort().join("|");}
+function selectedPortfolioEcmIds(){return [...document.querySelectorAll(".portfolio-ecm-select:checked")].map(x=>x.value);}
+function renderPortfolioInteractionEditor(existing=null){if(!PORTFOLIO_ANALYSIS)return;const ids=selectedPortfolioEcmIds(),prior=new Map((existing?.interactionRecords||[]).map(r=>[portfolioInteractionKey(r),r])),detected=PORTFOLIO_ANALYSIS.detectInteractions(currentAudit,ids);$("portfolio-interactions").innerHTML=detected.map((d,i)=>{const r=prior.get(portfolioInteractionKey(d))||d,type=r.interactionType||d.interactionType;return `<div class="item portfolio-interaction" data-index="${i}" data-ecms="${escapeHtml(d.ecmIds.join("|"))}" data-reasons="${escapeHtml(d.reasons.join("|"))}"><strong>${escapeHtml(d.ecmIds.join(" ↕ "))}</strong><small>${escapeHtml(d.reasons.join(" • "))}</small><label>Relationship<select class="portfolio-interaction-type">${PORTFOLIO_ANALYSIS.INTERACTION_TYPES.map(x=>`<option${x===type?" selected":""}>${x}</option>`).join("")}</select></label><label class="check-label"><input class="portfolio-interaction-confirmed" type="checkbox"${r.confirmed?" checked":""}/> Engineer confirms classification</label><label>Shared original baseline (only for sequential adjustment)<input class="portfolio-interaction-baseline" type="number" step="any" value="${r.adjustment?.baselineEnergy??""}" /></label><label>Assumption / reason<input class="portfolio-interaction-notes" value="${escapeHtml(r.engineerNotes||"")}" placeholder="Why this classification or sequence applies" /></label></div>`;}).join("")||`<p class="muted">No deterministic overlap signals among selected ECMs. Savings remain independently additive unless the engineer adds a relationship in a future release.</p>`;}
+function openPortfolio(id=null){const existing=id?(currentAudit.ecmPortfolios||[]).find(p=>p.portfolioId===id):null;$("portfolio-id").value=existing?.portfolioId||"";$("portfolio-name").value=existing?.name||"Recommended Portfolio";$("portfolio-description").value=existing?.description||"";const sequence=new Map((existing?.sequence||[]).map((id,i)=>[id,i+1]));$("portfolio-ecms").innerHTML=(currentAudit.ecms||[]).map((e,i)=>`<div class="row"><label class="check-label"><input class="portfolio-ecm-select" type="checkbox" value="${escapeHtml(e.ecmId)}"${existing?.ecmIds?.includes(e.ecmId)?" checked":""}/> ${escapeHtml(e.ecmId)} — ${escapeHtml(e.title)} <small>${escapeHtml(e.recommendationStatus||"Candidate")}</small></label><label>Sequence<input class="portfolio-sequence" data-ecm="${escapeHtml(e.ecmId)}" type="number" min="1" value="${sequence.get(e.ecmId)||i+1}" /></label></div>`).join("")||`<p class="muted">Create ECMs before building a portfolio.</p>`;for(const input of document.querySelectorAll(".portfolio-ecm-select"))input.onchange=()=>renderPortfolioInteractionEditor(existing);$("portfolio-shared-cost").value=existing?.costAdjustments?.sharedMobilizationCost??"";$("portfolio-avoided-cost").value=existing?.costAdjustments?.avoidedReplacementCost??"";$("portfolio-incentives").value=existing?.costAdjustments?.incentives??"";$("portfolio-annual-cost-adjustment").value=existing?.costAdjustments?.annualCostSavingsAdjustment??"";renderPortfolioInteractionEditor(existing);$("portfolio-dialog").showModal();}
+function nullableNumber(id){return $(id).value===""?null:Number($(id).value);}
+async function savePortfolio(){const id=$("portfolio-id").value,ecmIds=selectedPortfolioEcmIds();if(!$("portfolio-name").value.trim()||!ecmIds.length){alert("Portfolio name and at least one explicitly selected ECM are required.");return;}const sequence=[...document.querySelectorAll(".portfolio-sequence")].filter(x=>ecmIds.includes(x.dataset.ecm)).sort((a,b)=>Number(a.value)-Number(b.value)).map(x=>x.dataset.ecm),interactionRecords=[...document.querySelectorAll(".portfolio-interaction")].map((row,i)=>{const ids=row.dataset.ecms.split("|"),type=row.querySelector(".portfolio-interaction-type").value,confirmed=row.querySelector(".portfolio-interaction-confirmed").checked,baseline=row.querySelector(".portfolio-interaction-baseline").value,notes=row.querySelector(".portfolio-interaction-notes").value.trim();return {interactionId:`${id||"portfolio"}-interaction-${i+1}`,ecmIds:ids,affectedUtilityType:"Electricity",affectedEndUse:"",affectedEquipmentRecordIds:[],interactionType:type,method:type==="SEQUENTIAL"?"SEQUENTIAL_REMAINING_BASELINE":"CLASSIFICATION_ONLY",adjustment:type==="SEQUENTIAL"?{apply:confirmed,baselineEnergy:baseline===""?null:Number(baseline)}:null,assumptions:notes?[notes]:[],warnings:confirmed?[]:["Interaction requires engineer review."],engineerNotes:notes,confirmed,reasons:row.dataset.reasons.split("|").filter(Boolean)};}),editable={name:$("portfolio-name").value.trim(),description:$("portfolio-description").value.trim(),ecmIds,sequence,interactionRecords,costAdjustments:{sharedMobilizationCost:nullableNumber("portfolio-shared-cost"),avoidedReplacementCost:nullableNumber("portfolio-avoided-cost"),incentives:nullableNumber("portfolio-incentives"),annualCostSavingsAdjustment:nullableNumber("portfolio-annual-cost-adjustment")}};currentAudit.ecmPortfolios=Array.isArray(currentAudit.ecmPortfolios)?currentAudit.ecmPortfolios:[];let record,rollback;if(id){record=currentAudit.ecmPortfolios.find(p=>p.portfolioId===id);const previous=structuredClone(record);Object.assign(record,editable,{updatedAt:nowISO()});rollback=()=>Object.assign(record,previous);}else{record={portfolioId:uid(),...editable,createdAt:nowISO(),updatedAt:nowISO()};currentAudit.ecmPortfolios.push(record);rollback=()=>currentAudit.ecmPortfolios=currentAudit.ecmPortfolios.filter(p=>p!==record);}const result=PORTFOLIO_ANALYSIS.analyzePortfolio(currentAudit,{...record,sourceFingerprint:null});Object.assign(record,{baselineEnergyByUtility:result.interactions.flatMap(r=>r.trace?[{utilityType:r.trace.utilityType,baselineEnergy:r.trace.originalBaseline,energyUnit:r.trace.energyUnit}]:[]),standaloneSavings:result.standaloneSavings,combinedSavings:result.combinedSavings,combinedCostSavings:result.combinedCostSavings,combinedImplementationCost:result.combinedImplementationCost,combinedEconomics:{simplePaybackYears:result.simplePaybackYears},warnings:result.warnings,qaFlags:result.qaFlags,evidenceLevel:result.evidenceLevel,maturity:result.maturity,status:result.status,calculationTrace:result.interactions.filter(r=>r.trace).map(r=>r.trace),sourceFingerprint:result.sourceFingerprint});if(await saveCurrent()){$("portfolio-dialog").close();render();}else rollback();}
+async function deletePortfolio(id){if(!confirm("Delete this portfolio scenario? Standalone ECMs and calculations will be preserved."))return;const previous=currentAudit.ecmPortfolios;currentAudit.ecmPortfolios=currentAudit.ecmPortfolios.filter(p=>p.portfolioId!==id);if(await saveCurrent())render();else currentAudit.ecmPortfolios=previous;}
+function renderPortfolios(){if(!PORTFOLIO_ANALYSIS)return;const results=(currentAudit.ecmPortfolios||[]).map(p=>PORTFOLIO_ANALYSIS.analyzePortfolio(currentAudit,p)),fmt=n=>n===null||n===undefined?"—":Number(n).toLocaleString(undefined,{maximumFractionDigits:1});$("portfolio-list").innerHTML=results.map(r=>`<details class="disclosure portfolio-card"><summary><span>${escapeHtml(r.name)} <span class="pill">${escapeHtml(r.status.replaceAll("_"," "))}</span></span><span>${r.ecmIds.length} ECMs</span></summary><div class="review-grid"><div class="metric"><strong>${fmt(r.standaloneSavings.electricKwh)}</strong><span>Standalone kWh/yr</span></div><div class="metric"><strong>${r.combinedSavings?fmt(r.combinedSavings.electricKwh):"INVALID"}</strong><span>Adjusted kWh/yr</span></div><div class="metric"><strong>$${fmt(r.combinedCostSavings)}</strong><span>Annual cost savings</span></div><div class="metric"><strong>$${fmt(r.combinedImplementationCost)}</strong><span>Implementation cost</span></div><div class="metric"><strong>${fmt(r.simplePaybackYears)}</strong><span>Simple payback (yr)</span></div><div class="metric"><strong>${r.qaFlags.length}</strong><span>QA flags</span></div></div><p><strong>Evidence ${escapeHtml(r.evidenceLevel)} • ${escapeHtml(r.maturity)}</strong><br><small>${escapeHtml(r.evidenceReason)}</small></p>${r.interactions.map(i=>`<div class="item"><strong>${escapeHtml(i.ecmIds.join(" ↕ "))} — ${escapeHtml(i.interactionType)}</strong><small>${escapeHtml(i.confirmed?i.method:"Requires engineer review")}</small>${i.trace?`<small>Baseline ${fmt(i.trace.originalBaseline)} → final ${fmt(i.trace.finalProposedEnergy)}; combined ${fmt(i.trace.combinedSavings)} ${escapeHtml(i.trace.energyUnit)}</small>`:""}</div>`).join("")}${r.qaFlags.map(q=>`<div class="badge-warn">⚠ ${escapeHtml(q.code.replaceAll("_"," "))}</div>`).join("")}<div class="actions"><button class="secondary small" onclick="openPortfolio('${r.portfolioId}')">Review / Edit</button><button class="danger-link" onclick="deletePortfolio('${r.portfolioId}')">Delete</button></div></details>`).join("")||`<p class="muted">No portfolio yet. Add only ECMs explicitly selected for a scenario.</p>`;}
+
 function render(){
   if(!currentAudit) return;
   recalculateAllCompleteness();
   $("audit-title").textContent=currentAudit.site?.facilityName||"Untitled Audit";
   $("header-status").textContent=`${currentAudit.site?.facilityName||"Active audit"} • V${APP_VERSION}`;
   renderSystemInventory();
-  renderAnalysisQueue();renderEndUseAnalysis();renderEndUseRollups();renderEndUseSources();renderFieldExitReview();
+  renderAnalysisQueue();renderEndUseAnalysis();renderEndUseRollups();renderEndUseSources();renderPortfolios();renderFieldExitReview();
 
   const filtered=currentAudit.equipment.filter(x=>x.systemType===activeType);
   $("equipment-list").innerHTML=filtered.length?filtered.map(x=>{
@@ -1589,6 +1609,7 @@ async function exportAudit(){
   exportCopy.engineeringAnalysis=WORKFLOW?.exportReadiness(currentAudit,CALC_ENGINE)||[];
   exportCopy.utilityAnalysis=UTILITY_ANALYSIS?.analyze(currentAudit)||null;
   exportCopy.endUseAnalysis=END_USE_ANALYSIS?.analyze(currentAudit)||null;
+  exportCopy.portfolioAnalysis=PORTFOLIO_ANALYSIS?.analyze(currentAudit)||null;
   const integrity=collectIntegrityWarnings();
   exportCopy.exportIntegrity={
     generatedAt:nowISO(),
@@ -1629,7 +1650,7 @@ async function deleteCurrentAudit(){
   await showDashboard();
 }
 async function copyPrompt(){
-  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V5.1 audit package. Read manifest.json first, treat audit.json as canonical, and use CSV/photo files as interoperable evidence. Respect utility and end-use baseline completeness, reconciliation residuals, provenance, evidence levels, calculation maturity, QA flags, method validation status, dependencies, revision history, stale status, and engineering readiness. Do not invent equipment specifications, measurements, schedules, utility rates, costs, savings, billing periods, end-use allocations, or weather effects.`;
+  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V5.2 audit package. Read manifest.json first, treat audit.json as canonical, and use CSV/photo files as interoperable evidence. Distinguish standalone ECM savings from adjusted portfolio savings. Respect confirmed interaction methods, sequence traces, excluded alternatives, utility/end-use boundaries, provenance, evidence, maturity, QA flags, stale status, and engineering readiness. Do not invent interaction factors, equipment specifications, measurements, schedules, utility rates, costs, savings, billing periods, end-use allocations, or weather effects.`;
   try{ await navigator.clipboard.writeText(prompt); alert("AI analysis prompt copied."); }catch{ alert(prompt); }
 }
 
@@ -1680,6 +1701,9 @@ $("add-end-use-btn").onclick=()=>openEndUse(null);
 $("endUseUtility").addEventListener("change",endUseCategories);
 $("save-end-use").onclick=()=>{if(!$("endUseUnit").value.trim()){alert("Enter the native annual energy unit for this fuel (for example, gallons/yr).");return;}saveEndUse();};
 $("close-end-use").onclick=$("cancel-end-use").onclick=()=>$("end-use-dialog").close();
+$("add-portfolio-btn").onclick=()=>openPortfolio(null);
+$("save-portfolio").onclick=savePortfolio;
+$("close-portfolio").onclick=$("cancel-portfolio").onclick=()=>$("portfolio-dialog").close();
 $("ecmEquipment").addEventListener("change",updateEcmTemplateInfo);
 $("save-ecm").onclick=saveEcm;
 $("add-calculation-btn").onclick=()=>openCalculation(null);
@@ -1699,4 +1723,4 @@ $("delete-audit-btn").onclick=deleteCurrentAudit;
 $("copy-prompt-btn").onclick=copyPrompt;
 
 showDashboard();
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=5.1.0").catch(console.error); }
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=5.2.0").catch(console.error); }

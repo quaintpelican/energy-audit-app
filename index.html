@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="audist-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=5.1.0" />
+  <link rel="stylesheet" href="styles.css?v=5.2.0" />
   <title>Audist</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V5.1 • Offline-first</p>
+      <p id="header-status">V5.2 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -60,6 +60,11 @@
         <div id="end-use-list" class="list compact"></div>
         <details class="disclosure"><summary>Major End-Use Coverage</summary><div id="end-use-coverage" class="list compact"></div></details>
         <details class="disclosure"><summary>Reconciliation QA</summary><div id="end-use-qa" class="list compact"></div></details>
+      </section>
+
+      <section class="card analysis-only hidden" id="portfolio-section">
+        <div class="section-title"><div><h2>ECM Portfolio</h2><p class="muted">Standalone savings are not portfolio savings.</p></div><button class="secondary small" id="add-portfolio-btn">+ Portfolio</button></div>
+        <div id="portfolio-list" class="list compact"></div>
       </section>
 
       <section class="card field-only">
@@ -289,6 +294,8 @@
     <label>Proposed Improvement<textarea id="ecmProposed" rows="2"></textarea></label>
     <label>Data Still Needed<textarea id="ecmMissing" rows="2"></textarea></label>
     <label>Confidence<select id="ecmConfidence"><option>High</option><option selected>Medium</option><option>Low</option></select></label>
+    <label>Recommendation Status<select id="ecmRecommendation"><option>Candidate</option><option>Recommended</option><option>Not Recommended</option><option>Alternative</option><option>Deferred</option></select></label>
+    <label>Alternative / Option Group (optional)<input id="ecmOptionGroup" placeholder="e.g. DHW-01 Options" /></label>
     <div id="ecm-template-info" class="template-info hidden"></div>
     <details class="disclosure" id="ecm-analysis-section">
       <summary>Engineering Analysis <span id="ecm-calculation-count" class="pill">0 calculations</span></summary>
@@ -299,6 +306,19 @@
       <button class="secondary" id="cancel-ecm">Cancel</button>
       <button id="save-ecm">Save ECM</button>
     </div>
+  </dialog>
+
+  <dialog id="portfolio-dialog">
+    <div class="dialog-head"><h3>ECM Portfolio</h3><button class="secondary icon" id="close-portfolio">✕</button></div>
+    <input id="portfolio-id" type="hidden" />
+    <label>Portfolio Name<input id="portfolio-name" placeholder="Recommended Portfolio" /></label>
+    <label>Description<textarea id="portfolio-description" rows="2"></textarea></label>
+    <p class="muted">Select ECMs explicitly and assign sequence numbers. Sequence affects only confirmed sequential interactions.</p>
+    <div id="portfolio-ecms" class="list compact"></div>
+    <h4>Detected Interaction Review</h4>
+    <div id="portfolio-interactions" class="list compact"></div>
+    <details class="disclosure"><summary>Explicit cost adjustments</summary><div class="grid"><label>Shared Mobilization Cost ($)<input id="portfolio-shared-cost" type="number" step="any" /></label><label>Avoided Replacement Cost ($)<input id="portfolio-avoided-cost" type="number" step="any" /></label><label>Incentives ($)<input id="portfolio-incentives" type="number" step="any" /></label><label>Annual Cost Savings Adjustment ($/yr)<input id="portfolio-annual-cost-adjustment" type="number" step="any" /></label></div></details>
+    <div class="actions"><button class="secondary" id="cancel-portfolio">Cancel</button><button id="save-portfolio">Save &amp; Recalculate</button></div>
   </dialog>
 
   <dialog id="group-dialog">
@@ -357,12 +377,13 @@
     </div>
   </dialog>
 
-  <script src="db.js?v=5.1.0"></script>
-  <script src="calculations.js?v=5.1.0"></script>
-  <script src="utility-analysis.js?v=5.1.0"></script>
-  <script src="end-use-analysis.js?v=5.1.0"></script>
-  <script src="workflow.js?v=5.1.0"></script>
-  <script src="package-export.js?v=5.1.0"></script>
-  <script src="app.js?v=5.1.0"></script>
+  <script src="db.js?v=5.2.0"></script>
+  <script src="calculations.js?v=5.2.0"></script>
+  <script src="utility-analysis.js?v=5.2.0"></script>
+  <script src="end-use-analysis.js?v=5.2.0"></script>
+  <script src="portfolio-analysis.js?v=5.2.0"></script>
+  <script src="workflow.js?v=5.2.0"></script>
+  <script src="package-export.js?v=5.2.0"></script>
+  <script src="app.js?v=5.2.0"></script>
 </body>
 </html>

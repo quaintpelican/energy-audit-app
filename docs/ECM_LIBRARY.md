@@ -16,3 +16,5 @@ Field documentation completeness and calculation readiness are separate. Require
 Equipment grouping is explicit. Group membership uses stable equipment UUIDs. Representative sampling affects population provenance only after the auditor confirms the population and sampled records; inferred similarity alone never changes provenance.
 
 The UI exposes all approved `READY-V1` methods and clearly marked `VALIDATE-V2` readiness entries. Method selection does not fabricate inputs or imply ECM applicability. Every component records its baseline/proposed boundary, affected operation/end use/energy stream, component role, and interaction category. QA flags identify equipment outside the ECM relationship and likely overlap with other ECM calculations.
+
+V5.2 formalizes ECM recommendation status independently from calculation readiness and supports explicit alternative option groups. Standalone calculation results remain authoritative. Portfolio membership is explicit; nonrecommended/deferred/alternative ECM analyses are preserved. Option-group members are mutually exclusive in a portfolio unless a future explicit override workflow is separately reviewed.

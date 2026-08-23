@@ -8,6 +8,10 @@ Implemented: account/bill evidence, legacy conversion, completeness and QA flags
 
 Implemented: canonical traceable end-use estimates, conservative automatic assembly from explicit baseline-energy calculation outputs, hierarchy/no-double-count controls, native-fuel aggregation, whole-building reconciliation with explicit residuals, major-system coverage, stale/duplicate/weak-evidence QA, ECM savings scale checks, Analysis Mode review, and package-format-3 export. No residual is allocated and no ECM savings output becomes baseline consumption.
 
+## V5.2 ECM portfolio interactions — release candidate
+
+Implemented: explicit multi-scenario portfolio schema, recommendation/alternative metadata, deterministic overlap screening, engineer-confirmed sequence, remaining-baseline schedule/power and replacement/controls adjustment, immutable standalone results, mutually exclusive option rejection, staleness/evidence/economics/utility/end-use QA, Analysis Mode review, and package-format-4 export.
+
 ## Completed baselines
 
 - V3.1: field-data reliability, autosave, Blob photos, UUID ECM relationships, migration/rollback safeguards.

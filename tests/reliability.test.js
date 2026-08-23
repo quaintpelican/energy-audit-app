@@ -8,6 +8,7 @@ const appSource=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
 const calculationSource=fs.readFileSync(path.join(__dirname,"..","calculations.js"),"utf8");
 const utilitySource=fs.readFileSync(path.join(__dirname,"..","utility-analysis.js"),"utf8");
 const endUseSource=fs.readFileSync(path.join(__dirname,"..","end-use-analysis.js"),"utf8");
+const portfolioSource=fs.readFileSync(path.join(__dirname,"..","portfolio-analysis.js"),"utf8");
 const htmlSource=fs.readFileSync(path.join(__dirname,"..","index.html"),"utf8");
 
 function loadApp(){
@@ -40,6 +41,7 @@ function loadApp(){
   vm.runInContext(calculationSource,context,{filename:"calculations.js"});
   vm.runInContext(utilitySource,context,{filename:"utility-analysis.js"});
   vm.runInContext(endUseSource,context,{filename:"end-use-analysis.js"});
+  vm.runInContext(portfolioSource,context,{filename:"portfolio-analysis.js"});
   vm.runInContext(source,context,{filename:"app.js"});
   return context;
 }
@@ -388,6 +390,13 @@ test("editing an Other Fuel model retains its native unit",()=>{
   vm.runInContext(`currentAudit={auditId:"a",schemaVersion:4,site:{},systems:[],equipment:[],ecms:[],calculations:[],endUseModels:[{endUseModelId:"eu",utilityType:"Other Fuel",category:"Process",annualEnergy:10,energyUnit:"gallons/yr",basis:"Inventory",assumptions:["Test"],systemRecordIds:[],equipmentRecordIds:[],calculationIds:[]}],metadata:{}};openEndUse("eu");`,context);
   assert.equal(context.__elements.get("endUseUnit").value,"gallons/yr");
   assert.equal(context.__elements.get("endUseUnit").readOnly,false);
+});
+
+test("portfolio membership protects ECM deletion and preserves standalone analysis",async()=>{
+  const context=loadApp(),alerts=[];context.alert=m=>alerts.push(m);
+  await vm.runInContext(`(async()=>{currentAudit={auditId:"a",schemaVersion:4,site:{},systems:[],equipment:[],ecms:[{ecmId:"ECM-1",title:"Measure",calculationIds:[]}],calculations:[],endUseModels:[],ecmPortfolios:[{portfolioId:"P",name:"Recommended",ecmIds:["ECM-1"],sequence:["ECM-1"],interactionRecords:[]}],metadata:{}};await deleteEcm("ECM-1");})()`,context);
+  assert.equal(vm.runInContext("currentAudit.ecms.length",context),1);
+  assert.match(alerts.join(" "),/portfolio/i);
 });
 
 test("failed destructive persistence restores deleted equipment",async()=>{

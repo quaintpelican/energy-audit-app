@@ -1,5 +1,15 @@
 # Changelog
 
+## V5.2 ECM Portfolio & Interaction Analysis — release candidate
+
+- Added optional multi-scenario `ecmPortfolios[]`, explicit ECM inclusion/sequence, recommendation statuses, option groups, interaction taxonomy, source fingerprints, and reproducible traces.
+- Added deterministic overlap screening across stable equipment/system/end-use/stream/source/parent/option relationships without automatic subtraction.
+- Added only the engineer-confirmed `SEQUENTIAL_REMAINING_BASELINE` method, preserving standalone results and intermediate/final portfolio energy.
+- Added invalid-result protection for negative baselines and incompatible alternatives plus end-use, utility, demand, stale-source, evidence, economics, and reference QA.
+- Added Analysis Mode portfolio and interaction review with explicit cost hooks; no generic factors or hidden optimization.
+- Advanced the professional package to format 4 with portfolio and interaction CSVs and manifest analysis summary.
+- Retained audit schema 4, IndexedDB version 3, offline operation, and all V5.1 behavior without migration.
+
 ## V5.1 End-Use & Whole-Building Reconciliation — release candidate
 
 - Added canonical manual `endUseModels[]` with stable UUID relationships, native utility units, provenance, evidence, maturity, basis, assumptions, hierarchy, source versions, and immediate serialized persistence.

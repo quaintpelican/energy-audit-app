@@ -1,4 +1,4 @@
-# Calculation Library — V5.0
+# Calculation Library — V5.2
 
 ## Facility utility methods
 
@@ -27,6 +27,8 @@ Each method has explicit applicability, formula, required/optional inputs, canon
 An ECM may contain multiple calculation components. Each component records the exact baseline and proposed condition, affected operation, end use, baseline energy stream, role, interaction category, stable equipment links, and upstream calculation IDs. Linked output fingerprints include upstream version/update state. A stale or missing upstream result propagates `Needs Recalculation` through the chain.
 
 Direct savings, thermal interactions, demand effects, and economics remain separate components. The engine flags calculations on the same equipment/end-use/energy-stream across ECMs as potential overlap; it does not silently net or remove them. Recalculation saves prior calculated inputs and outputs in `revisionHistory[]`.
+
+V5.2 does not alter any approved standalone formula. `portfolio-analysis.js` consumes saved outputs in a separate layer. Its only numerical interaction is an explicitly confirmed remaining-baseline sequence; all other classifications remain review-only until methodology is approved.
 
 ## Maturity and evidence
 

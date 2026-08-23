@@ -1,12 +1,12 @@
-# Audist — V5.1 End-Use & Whole-Building Reconciliation
+# Audist — V5.2 ECM Portfolio & Interaction Analysis
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
-V5.1 adds traceable end-use models, conservative assembly from explicit baseline calculations, whole-building reconciliation, residual and evidence QA, system coverage, and package-format-3 export while preserving the V5.0 utility baseline. It never converts ECM savings into baseline consumption or forces modeled energy to match bills. See `docs/END_USE_RECONCILIATION.md`.
+V5.2 adds explicit ECM scenarios, interaction screening, engineer-confirmed sequential remaining-baseline calculations, alternatives, combined economics, evidence/staleness QA, and package-format-4 export while preserving V5.1. **Standalone ECM savings must not be assumed additive.** See `docs/ECM_PORTFOLIO_INTERACTIONS.md`.
 
 ## Portable audit package
 
-**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 3, record/photo/utility/end-use counts, summarized utility and reconciliation analysis, warnings, errors, and integrity status. A referenced photo that cannot be packaged is always `FAIL`.
+**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 4, record/photo/utility/end-use/portfolio counts, summarized utility, reconciliation, and portfolio analysis, warnings, errors, and integrity status. A referenced photo that cannot be packaged is always `FAIL`.
 
 The export is read-only. Current IndexedDB photo Blobs are processed sequentially without base64 conversion; legacy embedded data URLs remain exportable. The package uses sanitized human-readable paths while stable UUIDs remain authoritative. iPhone Web Share is used when file sharing is supported, with a standard download fallback.
 
@@ -23,6 +23,10 @@ V4.1 implements all 25 `READY-V1` methods in the governing California V1.1 libra
 Every saved calculation contains the method/version, formula, exact input snapshot, units, provenance, evidence level, source references, assumptions, warnings, QA flags, outputs, maturity, explicit baseline/proposed/operation/end-use/energy-stream boundaries, ECM UUID, stable equipment UUIDs, dependencies, and prior revisions. Source changes propagate **Needs Recalculation** through dependency chains. Equipment display-ID renames do not break relationships.
 
 No deemed/default value is silently supplied. An auditor may explicitly enter an estimate or assumption, but it remains visible, produces QA review information, and Level D/default evidence cannot exceed `SCREENING` maturity.
+
+## V5.2 portfolio model
+
+Analysis Mode supports multiple explicitly selected portfolios. Audist screens shared equipment, systems, end uses, streams, calculation sources, parent/child measures, and alternatives. It adjusts savings only when an engineer confirms `SEQUENTIAL_REMAINING_BASELINE`, supplies a shared baseline, and defines sequence. Standalone results remain unchanged and visible beside adjusted results. Negative baselines and mutually exclusive selections invalidate the combined result.
 
 ## V5.1 reconciliation model
 
@@ -44,7 +48,7 @@ Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-
 
 ## iPhone release-candidate procedure
 
-1. Open the V5.1 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
+1. Open the V5.2 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
 2. Create/open a test audit containing two systems, two equipment records, measurements, a utility month, an ECM, and a saved calculation.
 3. Capture an Overview and Nameplate photo, background the app immediately, relaunch, and confirm both photos remain visible.
 4. Turn on Airplane Mode, fully close the Home Screen app, relaunch, and choose **Export Audit Package**.
@@ -52,10 +56,11 @@ Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-
 6. Tap **Save / Share Package**, save to Files, and confirm the filename ends `_Audist.zip`.
 7. In Analysis Mode, add a manual Lighting estimate with a basis, assumption, evidence level, and stable system/equipment links. Background and relaunch; verify it persists.
 8. Confirm modeled electricity, utility baseline, residual, signed/absolute gap, coverage, and QA are understandable. Deliberately model more than the baseline and confirm Audist flags it without changing the entered value.
-9. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all seven files under `tables/` including `end_uses.csv`, and every expected image under `photos/` open normally.
-10. Verify `manifest.json` reports `packageFormatVersion: 3`, matching utility/end-use/photo counts, utility and reconciliation summaries, and `photosReferenced == photosExported`.
-11. Verify a CSV containing commas/notes opens with intact columns and that `audit.json` retains UUIDs, provenance, end-use sources, reconciliation residuals, readiness, calculations, dependencies, assumptions, QA flags, and photo package paths.
-12. Return to Audist and confirm the audit, calculations, estimates, and photos are unchanged. Delete one test photo Blob only in a disposable browser test environment, export again, and confirm integrity is `FAIL`, never a warning/pass.
+9. Create a Recommended Portfolio with two overlapping ECMs. Confirm the interaction, enter the shared baseline, and set sequence. Verify standalone and adjusted values remain separately visible.
+10. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all nine files under `tables/` including portfolio/interaction CSVs, and every expected image under `photos/` open normally.
+11. Verify `manifest.json` reports `packageFormatVersion: 4`, matching portfolio/interaction/photo counts and all three analysis summaries.
+12. Verify a CSV containing commas/notes opens with intact columns and that `audit.json` retains UUIDs, provenance, end-use sources, portfolio inclusion/sequence/interactions, standalone and adjusted results, assumptions, QA flags, and photo package paths.
+13. Return to Audist and confirm the audit, calculations, portfolios, estimates, and photos are unchanged. Delete one test photo Blob only in a disposable browser test environment, export again, and confirm integrity is `FAIL`, never a warning/pass.
 
 ### Existing calculation and migration regression
 

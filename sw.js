@@ -1,5 +1,5 @@
-const CACHE="audist-v5-1-end-use-reconciliation-1";
-const ASSETS=["./","./index.html","./styles.css?v=5.1.0","./db.js?v=5.1.0","./calculations.js?v=5.1.0","./utility-analysis.js?v=5.1.0","./end-use-analysis.js?v=5.1.0","./workflow.js?v=5.1.0","./package-export.js?v=5.1.0","./app.js?v=5.1.0","./manifest.webmanifest","./icon.svg","./audist-icon.png"];
+const CACHE="audist-v5-2-ecm-portfolio-1";
+const ASSETS=["./","./index.html","./styles.css?v=5.2.0","./db.js?v=5.2.0","./calculations.js?v=5.2.0","./utility-analysis.js?v=5.2.0","./end-use-analysis.js?v=5.2.0","./portfolio-analysis.js?v=5.2.0","./workflow.js?v=5.2.0","./package-export.js?v=5.2.0","./app.js?v=5.2.0","./manifest.webmanifest","./icon.svg","./audist-icon.png"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
 });

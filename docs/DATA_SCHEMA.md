@@ -1,10 +1,12 @@
-# Audist Data Schema — V5.1
+# Audist Data Schema — V5.2
 
 V4.3 retains audit schema `4` and IndexedDB database version `3`. The canonical audit continues to include `systems[]`, `equipment[]`, `ecms[]`, and `calculations[]`, with optional additive `equipmentGroups[]`. Existing schema-4 audit data is not rewritten on open.
 
 V5.0 keeps those versions and adds optional `utilityAccounts[]` inside the audit object. Account and bill UUIDs are stable and unique; every bill repeats its parent `utilityAccountId`. Legacy `utility` is retained. Only audits containing legacy monthly data receive an additive conversion and migration backup; empty V4.x audits remain byte-equivalent on open. See `UTILITY_ANALYSIS.md`.
 
 V5.1 also adds optional canonical `endUseModels[]` for auditor-entered end-use estimates. Stable UUID relationships may reference systems, equipment, and baseline calculations. Every model records utility/category, annual native-unit energy, provenance, evidence, maturity, basis, assumptions, hierarchy role, source versions, and status. Automatically assembled end uses and reconciliation results are derived and are not persisted over canonical source data. See `END_USE_RECONCILIATION.md`.
+
+V5.2 adds optional `ecmPortfolios[]` and optional ECM `recommendationStatus`, `optionGroupId`, and `parentEcmId`. Portfolio records contain stable ECM membership, sequence, interactions, explicit cost adjustments, standalone/adjusted summaries, trace, evidence/maturity, status, QA, timestamps, and a source fingerprint. Derived `portfolioAnalysis` never replaces standalone calculations. See `ECM_PORTFOLIO_INTERACTIONS.md`.
 
 ## Workflow additions
 
@@ -37,7 +39,7 @@ An ECM may contain `calculationIds[]`. Editing an ECM preserves this and all unr
 
 ## Export container
 
-The professional package has independent `packageFormatVersion: 3`; this does not change audit schema 4. The exported audit copy may add derived `engineeringAnalysis`, `utilityAnalysis`, `endUseAnalysis`, and photo `packagePath`/MIME metadata. It also includes `tables/end_uses.csv`. The stored audit is not changed. Stable UUIDs remain authoritative; filenames are presentation only.
+The professional package has independent `packageFormatVersion: 4`; this does not change audit schema 4. The exported audit copy may add derived `engineeringAnalysis`, `utilityAnalysis`, `endUseAnalysis`, `portfolioAnalysis`, and photo `packagePath`/MIME metadata. It includes `tables/end_uses.csv`, `tables/ecm_portfolios.csv`, and `tables/ecm_interactions.csv`. The stored audit is not changed. Stable UUIDs remain authoritative; filenames are presentation only.
 
 ## Compatibility
 

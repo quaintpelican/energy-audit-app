@@ -151,3 +151,7 @@ Utility bills are evidence of actual purchased energy, water, demand, and cost. 
 
 End-use energy must come from explicit baseline calculation outputs or auditor-entered, traceable estimates with evidence and assumptions. ECM savings must never be reclassified as baseline energy. Whole-building reconciliation must keep utility types in native units, exclude rollups from leaf totals, retain the signed difference and unassigned residual, and show gaps without scaling models. Partial/zero baselines cannot be reconciled. Duplicate membership, stale sources, missing major-system coverage, weak evidence, and savings larger than the applicable end use are visible QA—not silent corrections. See `END_USE_RECONCILIATION.md`.
 
+## V5.2 ECM portfolio principle
+
+**Standalone ECM savings must not be assumed additive.** Portfolio analysis is separate from authoritative standalone calculations. Audist may detect shared boundaries, preserve engineer-confirmed sequence, calculate only transparent approved remaining-baseline interactions, and warn; it may not invent factors, choose alternatives, optimize opaquely, hide adjustments, or force reconciliation. Negative baselines and incompatible alternatives invalidate combined results. See `ECM_PORTFOLIO_INTERACTIONS.md`.
+

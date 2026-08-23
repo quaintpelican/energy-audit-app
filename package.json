@@ -1,5 +1,5 @@
 {
-  "name": "audist-v5-1-end-use-reconciliation-tests",
+  "name": "audist-v5-2-ecm-portfolio-tests",
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.js"
