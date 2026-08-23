@@ -1,5 +1,32 @@
 # Audist — Changelog
 
+## V3.3 — Field Workflow & Progressive Disclosure
+### Changed
+- Replaced the always-visible 20-system scope grid with a selected-system summary and expandable scope editor.
+- Added compact system tabs and equipment counts.
+- Organized equipment forms into visible Core data plus expandable Recommended, Controls/Operating Conditions, and Advanced sections.
+- Reduced equipment-card noise to ID/type, key size, measurement count, concise photo status, linked ECM count, and workflow status.
+- Added concise Complete, Missing Critical Data, Recommended Data Missing, and In Progress states.
+- Kept missing active-ECM and required-photo information visible above collapsed details.
+- Streamlined measurement entry to preset, value, automatic parameter/unit, Measured provenance, and optional instrument/note.
+- Added compact equipment-linked ECM and photo requirement sections.
+- Reserved V4 Engineering Analysis locations in equipment and ECM workflows without implementing calculations.
+
+### Schema and storage
+- Audit schema remains version 4.
+- IndexedDB remains database version 3.
+- Complete V3.2 audits open without a migration or field-data rewrite.
+- Autosave, photo Blob transactions, UUID relationships, unresolved references, and export integrity are unchanged.
+
+### Explicit exclusions
+No engineering formulas, savings, financial calculations, new system families, AI API, cloud sync, backend, paid dependency, or framework migration were added.
+
+### Verification
+- 40 automated tests, including presentation non-mutation, system-filter integrity, measurement preset safety, unchanged completeness, and all V3.1/V3.2 storage behavior.
+- Interactive 390 × 844 browser validation of audit scope, system navigation, chiller progressive disclosure, missing-critical status, and preset-first measurements.
+- Manual physical-iPhone offline, camera, background/relaunch, and bright-light testing remains required before production deployment.
+
+
 ## V3.2 — System Coverage & Field Schema
 ### Added
 - Facility-level System Inventory / Audit Scope with 20 selectable system families.
