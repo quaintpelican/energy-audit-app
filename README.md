@@ -1,9 +1,21 @@
-# Audist — V3.2
+# Audist — V3.3
 
 Offline-first iPhone energy-auditing PWA supporting structured ASHRAE Level 2 field data collection.
 
-## V3.2 focus
-System coverage and field schema breadth without engineering calculations.
+## V3.3 focus
+Field workflow and progressive disclosure without changing the V3.2 audit schema or adding engineering calculations.
+
+## Added in V3.3
+- Selected-system summary with equipment counts; the full 20-system scope editor is collapsed until needed.
+- Compact system navigation tabs with counts and system details behind expandable sections.
+- Equipment forms organized into visible Core fields plus expandable Recommended, Controls/Operating Conditions, and Advanced sections.
+- Concise equipment cards showing ID/type, key size, measurements, photo status, linked ECM count, and a four-state workflow indicator.
+- Prominent missing-critical-data warnings even when the relevant field is inside a collapsed section.
+- Faster measurement entry: preset → value, automatic parameter/unit, Measured provenance, optional instrument/note.
+- Compact photo requirement counts and linked Potential ECM sections.
+- Reserved Engineering Analysis sections in equipment and ECM workflows for V4; no formulas or calculated results are present.
+
+V3.3 keeps audit schema version 4 and IndexedDB database version 3. Opening a complete V3.2 audit requires no migration and does not rewrite its field data.
 
 ## Added in V3.2
 - Facility-level System Inventory / Audit Scope with 20 selectable system families.
@@ -16,7 +28,7 @@ System coverage and field schema breadth without engineering calculations.
 - Structured BAS schedules, setpoints, reset strategies, DCV, staging, and operational observations.
 - Audit schema 4 migration from V3.1 with a pre-migration backup; IndexedDB remains version 3.
 
-V3.2 intentionally adds no savings, affinity-law, lighting, financial, AI, backend, or cloud calculations/services.
+V3.3 intentionally adds no savings, affinity-law, lighting, financial, AI, backend, or cloud calculations/services.
 
 ## Reliability patch
 - Audit/photo additions and deletions commit atomically across IndexedDB stores.
@@ -79,17 +91,17 @@ Legacy V2.1/V3 photos embedded as `dataUrl` remain readable. New photos use the 
 Replace the repository root files with this release and commit to GitHub. Open the GitHub Pages URL in Safari once after deployment to allow the new Service Worker and IndexedDB schema to activate.
 
 ## Required test procedure
-1. Export a valuable V3.1 audit and open it in V3.2; verify equipment, measurements, photos, ECM links, warnings, and the pre-migration backup.
-2. Create a new audit and verify V3.2 is shown.
-3. Select Chilled Water, Pumps, BAS / Controls, Lighting, and Building Envelope; verify only those equipment tabs appear.
-4. Enter system schedules, controls summaries, and notes; background/reopen and confirm persistence.
-5. Add a chiller, pump, BAS record, lighting area, and envelope assembly; confirm only relevant fields appear and IDs are unique.
-6. Duplicate equipment; confirm a new ID is assigned and measurements/photos are not copied.
-7. Use measurement presets and confirm parameter/unit populate while value stays blank.
-8. Capture required/recommended photos and confirm completeness distinguishes them.
-9. Work in Airplane Mode, background the Home Screen app, relaunch, and confirm all records persist.
-10. Rename equipment linked to an ECM, verify the link survives, and confirm deletion protection.
-11. Export JSON and verify `systems[]`, equipment relationships, provenance, measurements, photos metadata, ECMs, and migration warnings.
+1. Export a valuable V3.2 preview audit, then open it in V3.3 and confirm its systems, equipment, measurements, photos, ECMs, and UUID relationships are unchanged.
+2. Confirm the header shows V3.3 and the dashboard initially shows selected systems rather than all 20 scope choices.
+3. Open **Edit Audit Scope**, select Chilled Water, Pumps, BAS / Controls, Lighting, and Envelope, then collapse it.
+4. Confirm compact system tabs show correct equipment counts and switching tabs never changes records.
+5. Open a chiller and confirm Core fields are visible while Recommended, Controls, and Advanced fields remain expandable.
+6. Confirm a missing required photo or active ECM input produces a visible **Missing Critical Data** status.
+7. Add a preset measurement: verify parameter/unit populate, value stays blank, provenance is Measured, and saving persists immediately.
+8. Capture a photo, background the app immediately, reopen, and confirm the Blob and concise photo count remain.
+9. Verify linked ECMs appear in the compact Potential ECMs section and the V4 Engineering Analysis placeholder contains no result.
+10. Enable Airplane Mode, fully close/relaunch the Home Screen app, and repeat equipment and measurement edits.
+11. Export JSON and compare it with the V3.2 structure; no V3.3-only audit fields should appear.
 
 ## V3.1 reliability baseline
 The V3.1 reliability behavior below remains part of V3.2.
