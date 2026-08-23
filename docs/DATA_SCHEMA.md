@@ -1,7 +1,9 @@
 # Audist — Canonical Data Schema
 
 ## Status
-Canonical schema through V3.2. Changes must preserve existing audits through migration. Changes must preserve existing audits through migration.
+Canonical schema through V3.3. Changes must preserve existing audits through migration. Changes must preserve existing audits through migration.
+
+V3.3 introduces no canonical data fields, schema migration, object stores, or database-version change. Progressive-disclosure state is presentation-only and is not persisted in audit records.
 
 ## Schema principles
 - Every audit has a `schemaVersion`.
