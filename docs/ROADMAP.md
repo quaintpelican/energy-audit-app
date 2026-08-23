@@ -1,5 +1,13 @@
 # Audist Roadmap
 
+## V5.0 utility baseline — release candidate
+
+Implemented: account/bill evidence, legacy conversion, completeness and QA flags, complete-period purchased-energy/cost baseline, EUI/demand intensity, normalized and seasonal views, baseload screening, derived rates, ECM scale QA, manual-entry UI, offline charts, and package-format-2 export. The explicit CSV parser/mapping layer is present; provider-specific mapping UI is deferred.
+
+## Recommended V5.1
+
+Reconcile documented end-use estimates and ECM portfolios against the purchased-energy baseline with explicit boundaries and uncertainty. Weather normalization requires a separately specified and tested evidence, station-selection, regression-validation, and offline-data strategy.
+
 ## Completed baselines
 
 - V3.1: field-data reliability, autosave, Blob photos, UUID ECM relationships, migration/rollback safeguards.

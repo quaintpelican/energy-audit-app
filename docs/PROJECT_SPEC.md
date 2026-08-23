@@ -143,3 +143,7 @@ The auditor must be able to export the complete audit and every referenced evide
 ## Definition of success
 An experienced auditor can enter a facility with an iPhone, work offline, efficiently collect structured evidence, know before leaving whether critical information is missing, perform transparent calculations, and produce a defensible dataset that substantially reduces ASHRAE Level 2 reporting effort.
 
+## V5.0 purchased-energy baseline
+
+Utility bills are evidence of actual purchased energy, water, demand, and cost. V5.0 stores multiple accounts and bills without collapsing meter identity, inventing missing facts, or annualizing partial data. Derived metrics must be reproducible, use explicit units and provenance, require entered area for intensity metrics, and remain QA context rather than silently modifying ECM results. Offline, persistence, migration, and export protections apply equally to utility records.
+

@@ -1,10 +1,12 @@
-# Audist — V4.3 Professional Audit Package Export
+# Audist — V5.0 Utility Analysis & Energy Baseline
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
-## V4.3 portable audit package
+V5.0 adds offline multi-account utility evidence, transparent complete-period baselines, EUI and demand intensity, data-quality flags, blended historic rates, ECM scale QA, and package-format-2 export while preserving the V4.3 professional workflow. See `docs/UTILITY_ANALYSIS.md`.
 
-**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 1, record/photo counts, warnings, errors, and `PASS`, `PASS_WITH_WARNINGS`, or `FAIL`. A referenced photo that cannot be packaged is always `FAIL`.
+## Portable audit package
+
+**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 2, record/photo/utility counts, summarized utility analysis, warnings, errors, and integrity status. A referenced photo that cannot be packaged is always `FAIL`.
 
 The export is read-only. Current IndexedDB photo Blobs are processed sequentially without base64 conversion; legacy embedded data URLs remain exportable. The package uses sanitized human-readable paths while stable UUIDs remain authoritative. iPhone Web Share is used when file sharing is supported, with a standard download fallback.
 
@@ -24,7 +26,7 @@ No deemed/default value is silently supplied. An auditor may explicitly enter an
 
 ## Storage and migration
 
-V4.3 keeps audit schema version 4 and IndexedDB database version 3. `equipmentGroups[]` and ECM `analysisRecipe`/`equipmentGroupId` fields are additive and optional. Existing schema-4 audits open byte-equivalent and are not rewritten merely by opening them. Existing audit, equipment, measurement, photo, ECM, migration-backup, and unresolved-reference safeguards remain in force. The DB-v3 rollback bridge remains compatible.
+V5.0 keeps audit schema version 4 and IndexedDB database version 3. `utilityAccounts[]` is additive and optional. Legacy monthly data is copied conservatively into accounts; empty V4.x audits are not rewritten merely by opening them. Existing evidence, migration-backup, unresolved-reference, and DB-v3 rollback protections remain in force.
 
 ## Offline behavior and export
 
@@ -36,14 +38,14 @@ Run `npm test`. The suite includes workflow timing, recipe, source-priority/conf
 
 ## iPhone release-candidate procedure
 
-1. Open the V4.3 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
+1. Open the V5.0 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
 2. Create/open a test audit containing two systems, two equipment records, measurements, a utility month, an ECM, and a saved calculation.
 3. Capture an Overview and Nameplate photo, background the app immediately, relaunch, and confirm both photos remain visible.
 4. Turn on Airplane Mode, fully close the Home Screen app, relaunch, and choose **Export Audit Package**.
 5. Confirm progress advances through validation, photos, ZIP building, and verification. Confirm the result counts match the audit and integrity is `PASS` (or shows every intentional warning).
 6. Tap **Save / Share Package**, save to Files, and confirm the filename ends `_Audist.zip`.
 7. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all six files under `tables/`, and every expected image under `photos/` open normally.
-8. Verify `manifest.json` reports `packageFormatVersion: 1`, matching counts, and `photosReferenced == photosExported`.
+8. Verify `manifest.json` reports `packageFormatVersion: 2`, matching utility/photo counts, a utility-analysis summary, and `photosReferenced == photosExported`.
 9. Verify a CSV containing commas/notes opens with intact columns and that `audit.json` retains UUIDs, provenance, readiness, calculations, dependencies, assumptions, QA flags, and photo package paths.
 10. Return to Audist and confirm the audit, calculations, and photos are unchanged. Delete one test photo Blob only in a disposable browser test environment, export again, and confirm integrity is `FAIL`, never a warning/pass.
 

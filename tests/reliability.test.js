@@ -6,6 +6,7 @@ const vm = require("node:vm");
 const {webcrypto} = require("node:crypto");
 const appSource=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
 const calculationSource=fs.readFileSync(path.join(__dirname,"..","calculations.js"),"utf8");
+const utilitySource=fs.readFileSync(path.join(__dirname,"..","utility-analysis.js"),"utf8");
 const htmlSource=fs.readFileSync(path.join(__dirname,"..","index.html"),"utf8");
 
 function loadApp(){
@@ -36,6 +37,7 @@ function loadApp(){
   context.__createdBlobs=createdBlobs;
   const source=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
   vm.runInContext(calculationSource,context,{filename:"calculations.js"});
+  vm.runInContext(utilitySource,context,{filename:"utility-analysis.js"});
   vm.runInContext(source,context,{filename:"app.js"});
   return context;
 }
@@ -555,3 +557,7 @@ test("ECM editing preserves calculation IDs and export-compatible complete calcu
   assert.equal(result.calculation.inputs[0].provenance,"Measured");
   assert.equal(result.calculation.outputs[0].value,30000);
 });
+
+test("V5 converts legacy utility months without inventing dates and keeps empty V4 audits byte-equivalent",()=>{const context=loadApp(),legacy=vm.runInContext(`migrateAudit({auditId:"a",schemaVersion:4,site:{},systems:[],equipment:[],ecms:[],calculations:[],metadata:{},utility:{months:[{utilityMonthId:"m1",month:"2025-01",kwh:100,electricCost:25}]}})`,context);assert.equal(legacy.changed,true);assert.equal(legacy.audit.utilityAccounts[0].bills[0].billingStartDate,"");assert.equal(legacy.audit.utilityAccounts[0].bills[0].usage,100);assert.match(legacy.warnings.join(" "),/exact billing dates/i);const empty=vm.runInContext(`migrateAudit({auditId:"b",schemaVersion:4,site:{},systems:[],equipment:[],ecms:[],calculations:[],metadata:{},utility:{months:[]}})`,context);assert.equal(empty.changed,false);assert.equal(empty.audit.utilityAccounts,undefined);});
+
+test("new utility account and bill persist, while a failed bill save rolls back",async()=>{const context=loadApp();const result=await vm.runInContext(`(async()=>{currentAudit={auditId:"a",schemaVersion:4,site:{},systems:[],equipment:[],ecms:[],calculations:[],utility:{months:[]},utilityAccounts:[],metadata:{}};document.getElementById("uLabel").value="Main";document.getElementById("uType").value="Electricity";await saveUtilityMonth();const account=currentAudit.utilityAccounts[0];document.getElementById("uBillAccountId").value=account.utilityAccountId;document.getElementById("uBillStart").value="2025-01-01";document.getElementById("uBillEnd").value="2025-01-31";document.getElementById("uBillUsage").value="1000";document.getElementById("uBillUnit").value="kWh";document.getElementById("uBillCost").value="200";await saveUtilityBill();const saved=account.bills.length;dbPutAudit=async()=>{throw new Error("quota")};document.getElementById("uBillStart").value="2025-02-01";document.getElementById("uBillEnd").value="2025-02-28";await saveUtilityBill();return {accounts:currentAudit.utilityAccounts.length,saved,bills:account.bills.length};})()`,context);assert.equal(result.accounts,1);assert.equal(result.saved,1);assert.equal(result.bills,1);});

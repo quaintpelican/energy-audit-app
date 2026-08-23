@@ -1,8 +1,9 @@
-const APP_VERSION = "4.3";
+const APP_VERSION = "5.0";
 const SCHEMA_VERSION = 4;
 const CALC_ENGINE = globalThis.AudistCalculations;
 const WORKFLOW = globalThis.AudistWorkflow;
 const PACKAGE_EXPORT = globalThis.AudistPackageExport;
+const UTILITY_ANALYSIS = globalThis.AudistUtilityAnalysis;
 
 let currentAudit = null;
 let activeMode="field";
@@ -255,6 +256,7 @@ function blankAudit(){
     status:"Draft",
     site:{auditDate:new Date().toISOString().slice(0,10)},
     utility:{electricRate:"",demandRate:"",gasRate:"",notes:"",months:[]},
+    utilityAccounts:[],
     systems:[],
     equipment:[],
     ecms:[],
@@ -295,6 +297,10 @@ function migrateAudit(audit){
   migrated.equipment=migrated.equipment||[];
   migrated.ecms=migrated.ecms||[];
   migrated.calculations=migrated.calculations||[];
+  if(!Array.isArray(migrated.utilityAccounts)){
+    const converted=UTILITY_ANALYSIS?.legacyToAccounts(migrated)||[];
+    if(converted.length){migrated.utilityAccounts=converted;changed=true;warnings.push("Legacy monthly utility records were converted into account-based V5 utility records; exact billing dates and meter relationships remain unavailable.");}
+  }
   migrated.equipment.forEach(eq=>{
     if(eq.systemType==="HVAC"){ eq.systemType="PackagedHVAC"; changed=true; }
     if(!eq.systemType){ eq.systemType="Other"; changed=true; }
@@ -424,6 +430,19 @@ function validateAuditStructure(audit){
     if(!Array.isArray(calculation.inputs)||!Array.isArray(calculation.outputs)) errors.push(`Calculation ${calculation.calculationId||"(unknown)"} has invalid inputs or outputs.`);
     (calculation.equipmentRecordIds||[]).forEach(id=>{if(!recordIds.includes(id)) errors.push(`Calculation ${calculation.calculationId||"(unknown)"} references missing equipment UUID ${id}.`);});
   });
+  if(audit?.utilityAccounts!==undefined&&!Array.isArray(audit.utilityAccounts)) errors.push("utilityAccounts must be an array.");
+  const utilityAccountIds=(audit?.utilityAccounts||[]).map(account=>account.utilityAccountId);
+  if(utilityAccountIds.some(id=>!String(id||"").trim())||new Set(utilityAccountIds).size!==utilityAccountIds.length) errors.push("Utility account IDs must be present and unique.");
+  const utilityBillIds=[];
+  (audit?.utilityAccounts||[]).forEach(account=>{
+    if(!["Electricity","Natural Gas","Water","Other Fuel"].includes(account.utilityType)) errors.push(`Utility account ${account.utilityAccountId||"(unknown)"} has an invalid type.`);
+    if(!Array.isArray(account.bills)) errors.push(`Utility account ${account.utilityAccountId||"(unknown)"} has invalid bills.`);
+    (account.bills||[]).forEach(bill=>{
+      utilityBillIds.push(bill.utilityBillId);
+      if(bill.utilityAccountId!==account.utilityAccountId) errors.push(`Utility bill ${bill.utilityBillId||"(unknown)"} references the wrong account.`);
+    });
+  });
+  if(utilityBillIds.some(id=>!String(id||"").trim())||new Set(utilityBillIds).size!==utilityBillIds.length) errors.push("Utility bill IDs must be present and unique.");
   if(errors.length) throw new Error(`Migration validation failed: ${errors.join(" ")}`);
   return true;
 }
@@ -615,27 +634,27 @@ function utilityHeaderChanged(){
   queueSave();
 }
 function openUtility(){
-  ["uMonth","uKwh","uKw","uElectricCost","uTherms","uGasCost","uNotes"].forEach(id=>$(id).value="");
+  ["uLabel","uProvider","uMeter","uRateSchedule","uAddress","uNotes"].forEach(id=>$(id).value="");
+  $("uType").value="Electricity";
   $("utility-dialog").showModal();
 }
 async function saveUtilityMonth(){
-  if(!$("uMonth").value){ alert("Month is required."); return; }
-  currentAudit.utility=currentAudit.utility||{months:[]};
-  currentAudit.utility.months=currentAudit.utility.months||[];
-  const month={
-    utilityMonthId:uid(),month:$("uMonth").value,kwh:$("uKwh").value,kw:$("uKw").value,
-    electricCost:$("uElectricCost").value,therms:$("uTherms").value,gasCost:$("uGasCost").value,notes:$("uNotes").value
-  };
-  currentAudit.utility.months.push(month);
+  if(!$("uLabel").value.trim()){ alert("Account label is required."); return; }
+  currentAudit.utilityAccounts=Array.isArray(currentAudit.utilityAccounts)?currentAudit.utilityAccounts:[];
+  const account={utilityAccountId:uid(),utilityType:$("uType").value,accountLabel:$("uLabel").value.trim(),provider:$("uProvider").value.trim(),meterNumber:$("uMeter").value.trim(),rateSchedule:$("uRateSchedule").value.trim(),serviceAddress:$("uAddress").value.trim(),notes:$("uNotes").value.trim(),bills:[]};
+  currentAudit.utilityAccounts.push(account);
   if(await saveCurrent()){ $("utility-dialog").close(); render(); }
-  else currentAudit.utility.months=currentAudit.utility.months.filter(x=>x.utilityMonthId!==month.utilityMonthId);
+  else currentAudit.utilityAccounts=currentAudit.utilityAccounts.filter(x=>x.utilityAccountId!==account.utilityAccountId);
 }
+function openUtilityBill(accountId){const account=currentAudit.utilityAccounts.find(x=>x.utilityAccountId===accountId);if(!account)return;$("uBillAccountId").value=accountId;["uBillStart","uBillEnd","uBillUsage","uBillDemand","uBillCost","uBillEnergyCost","uBillDemandCost","uBillFixed","uBillTaxes","uBillNotes"].forEach(id=>$(id).value="");$("uBillSource").value="Manual Entry";$("uBillUnit").value=account.utilityType==="Electricity"?"kWh":account.utilityType==="Natural Gas"?"therms":account.utilityType==="Water"?"gallons":"";$("uBillEstimated").checked=false;$("utility-bill-dialog").showModal();}
+async function saveUtilityBill(){const account=currentAudit.utilityAccounts.find(x=>x.utilityAccountId===$("uBillAccountId").value);if(!account)return;if(!$("uBillStart").value||!$("uBillEnd").value||$("uBillUsage").value===""||$("uBillCost").value===""){alert("Billing start, end, usage, and total cost are required.");return;}const start=new Date($("uBillStart").value+"T00:00:00Z"),end=new Date($("uBillEnd").value+"T00:00:00Z");if(end<start){alert("Billing end must be on or after billing start.");return;}const value=id=>$(id).value===""?null:Number($(id).value),bill={utilityBillId:uid(),utilityAccountId:account.utilityAccountId,billingStartDate:$("uBillStart").value,billingEndDate:$("uBillEnd").value,billingMonth:$("uBillEnd").value.slice(0,7),billingDays:Math.round((end-start)/86400000)+1,usage:value("uBillUsage"),usageUnit:$("uBillUnit").value.trim(),peakDemandKw:value("uBillDemand"),cost:value("uBillCost"),energyCost:value("uBillEnergyCost"),demandCost:value("uBillDemandCost"),fixedCharges:value("uBillFixed"),taxesOther:value("uBillTaxes"),estimatedBill:$("uBillEstimated").checked,source:$("uBillSource").value.trim(),notes:$("uBillNotes").value.trim()};account.bills.push(bill);if(await saveCurrent()){$("utility-bill-dialog").close();render();}else account.bills=account.bills.filter(x=>x.utilityBillId!==bill.utilityBillId);}
+async function deleteUtilityBill(accountId,billId){if(!confirm("Delete this utility bill?"))return;const account=currentAudit.utilityAccounts.find(x=>x.utilityAccountId===accountId),previous=account.bills;account.bills=account.bills.filter(x=>x.utilityBillId!==billId);if(await saveCurrent())render();else account.bills=previous;}
 async function deleteUtilityMonth(id){
-  if(!confirm("Delete this utility month?")) return;
-  const previous=currentAudit.utility.months;
-  currentAudit.utility.months=currentAudit.utility.months.filter(x=>x.utilityMonthId!==id);
+  if(!confirm("Delete this utility account and all of its bills?")) return;
+  const previous=currentAudit.utilityAccounts;
+  currentAudit.utilityAccounts=currentAudit.utilityAccounts.filter(x=>x.utilityAccountId!==id);
   if(await saveCurrent()) render();
-  else currentAudit.utility.months=previous;
+  else currentAudit.utilityAccounts=previous;
 }
 
 function nextSystemId(type){
@@ -1156,6 +1175,10 @@ function resolveCalculationSource(input){
     return system?{...input,value:system[input.sourceField]}:null;
   }
   if(input.sourceKind==="utility") return {...input,value:currentAudit.utility?.[input.sourceField]};
+  if(input.sourceKind==="utility-analysis"){
+    const type=input.sourceField==="electricRate"?"Electricity":input.sourceField==="gasRate"?"Natural Gas":null,accounts=(currentAudit.utilityAccounts||[]).filter(a=>a.utilityType===type),bills=accounts.flatMap(a=>a.bills||[]),actual=bills.length&&bills.every(b=>["Utility Bill","Utility CSV"].includes(b.source)&&!b.estimatedBill),total=UTILITY_ANALYSIS?.analyze(currentAudit)?.totals?.byType?.[type];
+    return type&&actual&&total?.allAccountsComplete&&total.annualUsage>0?{...input,value:total.annualCost/total.annualUsage,sourceVersion:JSON.stringify(bills.map(b=>[b.utilityBillId,b.usage,b.cost,b.updatedAt]))}:null;
+  }
   if(input.sourceKind==="ecm"){
     const ecm=currentAudit.ecms.find(item=>item.ecmId===input.sourceRecordId);
     return ecm?{...input,value:ecm[input.sourceField]}:null;
@@ -1467,12 +1490,11 @@ function render(){
     </div>`;
   }).join(""):`<p class="muted">${activeType?`No ${escapeHtml(SYSTEM_LABELS[activeType]||activeType)} equipment added yet.`:"Select a system in Audit Scope to begin equipment inventory."}</p>`;
 
-  const months=currentAudit.utility?.months||[];
-  $("utility-count").textContent=`${months.length} months`;
-  $("utility-list").innerHTML=months.length?months.map(u=>`
-    <div class="item"><div class="row"><div><strong>${escapeHtml(u.month)}</strong>
-    <small>${u.kwh?`${escapeHtml(u.kwh)} kWh`:""}${u.kw?` • ${escapeHtml(u.kw)} kW`:""}${u.therms?` • ${escapeHtml(u.therms)} therms`:""}</small></div>
-    <button class="secondary small" onclick="deleteUtilityMonth('${u.utilityMonthId}')">Delete</button></div></div>`).join(""):`<p class="muted">No monthly utility data added yet.</p>`;
+  const utilityAnalysis=UTILITY_ANALYSIS?.analyze(currentAudit),accounts=currentAudit.utilityAccounts||[];
+  $("utility-count").textContent=`${accounts.length} account${accounts.length===1?"":"s"}`;
+  const eui=utilityAnalysis?.totals.eui,di=utilityAnalysis?.totals.demandIntensity,cost=utilityAnalysis?.totals.totalUtilityCost;
+  $("utility-analysis-summary").innerHTML=`<div class="metric"><strong>${eui?eui.siteKbtuPerSqFt.toFixed(1):"—"}</strong><span>Site EUI (kBtu/ft²·yr)</span></div><div class="metric"><strong>${di?di.wattsPerSqFt.toFixed(2):"—"}</strong><span>Peak W/ft²</span></div><div class="metric"><strong>${cost!==null&&cost!==undefined?`$${cost.toLocaleString(undefined,{maximumFractionDigits:0})}`:"—"}</strong><span>Complete annual cost</span></div><div class="metric"><strong>${utilityAnalysis?.qaFlags.length||0}</strong><span>Baseline QA flags</span></div>`;
+  $("utility-list").innerHTML=accounts.length?accounts.map((account,index)=>{const r=utilityAnalysis.accountResults[index],max=Math.max(...r.rows.map(x=>x.usage||0),1);return `<div class="item utility-account"><div class="row"><div><strong>${escapeHtml(account.accountLabel||account.utilityType)} — ${escapeHtml(account.utilityType)}</strong><small>${escapeHtml(account.provider||"Provider not recorded")} • ${r.completeness.status.replaceAll("_"," ")} • ${r.completeness.billCount} bills</small></div><div class="actions"><button class="secondary small" onclick="openUtilityBill('${account.utilityAccountId}')">+ Bill</button><button class="danger-link" onclick="deleteUtilityMonth('${account.utilityAccountId}')">Delete</button></div></div>${r.completeness.flags.length?`<p class="badge-warn">${r.completeness.flags.length} data-quality flag(s); review dates, units, and gaps.</p>`:""}<div class="utility-chart" aria-label="Monthly usage chart">${r.rows.map(row=>`<div class="utility-bar-row"><span>${escapeHtml(row.label)}</span><i style="width:${Math.max(2,(row.usage||0)/max*100)}%"></i><b>${row.usage??"—"} ${escapeHtml(row.usageUnit||"")}</b></div>`).join("")}</div><div class="list compact">${(account.bills||[]).map(b=>`<div class="row bill-row"><small>${escapeHtml(b.billingStartDate)} – ${escapeHtml(b.billingEndDate)} • ${b.usage} ${escapeHtml(b.usageUnit)} • $${b.cost}${b.estimatedBill?" • Estimated":""}</small><button class="secondary small" onclick="deleteUtilityBill('${account.utilityAccountId}','${b.utilityBillId}')">Delete</button></div>`).join("")}</div>${r.annual?`<small>Annual: ${r.annual.usage.toLocaleString()} ${escapeHtml(account.bills[0]?.usageUnit||"")} • blended $${r.annual.blendedRate?.toFixed(4)??"—"}/unit${r.baseload?` • baseload screen ${r.baseload.annualUsageScreening.toFixed(0)} units/yr`:""}</small>`:`<small>Partial period totals are shown; no annualization is performed.</small>`}</div>`;}).join(""):`<p class="muted">No utility accounts added yet. Add accounts and enter bills manually; partial periods will not be annualized.</p>`;
 
   $("equipment-count").textContent=`${currentAudit.equipment.length} items`;
   $("add-equipment-btn").textContent=activeType?`+ Add ${SYSTEM_LABELS[activeType]||activeType} Equipment`:`+ Select Audit Scope First`;
@@ -1497,7 +1519,7 @@ function render(){
     <div class="metric"><strong>${currentAudit.equipment.length}</strong><span>Equipment</span></div>
     <div class="metric"><strong>${measurements}</strong><span>Measurements</span></div>
     <div class="metric"><strong>${photos}</strong><span>Photos</span></div>
-    <div class="metric"><strong>${currentAudit.utility?.months?.length||0}</strong><span>Utility Months</span></div>
+    <div class="metric"><strong>${(currentAudit.utilityAccounts||[]).reduce((n,a)=>n+(a.bills||[]).length,0)||(currentAudit.utility?.months?.length||0)}</strong><span>Utility Bills</span></div>
     <div class="metric"><strong>${currentAudit.ecms.length}</strong><span>ECMs</span></div>`;
 }
 
@@ -1538,6 +1560,7 @@ async function exportAudit(){
   const safe=(currentAudit.site?.facilityName||"energy-audit").replace(/[^a-z0-9]+/gi,"_");
   const exportCopy=structuredClone(currentAudit);
   exportCopy.engineeringAnalysis=WORKFLOW?.exportReadiness(currentAudit,CALC_ENGINE)||[];
+  exportCopy.utilityAnalysis=UTILITY_ANALYSIS?.analyze(currentAudit)||null;
   const integrity=collectIntegrityWarnings();
   exportCopy.exportIntegrity={
     generatedAt:nowISO(),
@@ -1559,7 +1582,7 @@ async function exportAudit(){
 function updatePackageProgress(event){const labels={validating:"Validating records…",photos:`Exporting photos ${event.done} / ${event.total}`,zipping:`Building ZIP ${event.done} / ${event.total}`,complete:"Verifying package…"};$("export-progress").querySelector("p").textContent=labels[event.stage]||"Preparing package…";$("export-progress-bar").max=Math.max(1,event.total||1);$("export-progress-bar").value=event.done||0;}
 function downloadPackage(){if(!preparedPackage)return;const url=URL.createObjectURL(preparedPackage.blob),a=document.createElement("a");a.href=url;a.download=preparedPackage.fileName;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
 async function saveOrSharePackage(){if(!preparedPackage)return;const file=new File([preparedPackage.blob],preparedPackage.fileName,{type:"application/zip"});try{if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){await navigator.share({files:[file],title:"Audist Audit Package"});return;}}catch(error){if(error?.name==="AbortError")return;console.warn(error);}downloadPackage();}
-async function exportAuditPackage(){if(!PACKAGE_EXPORT){alert("Professional export module is unavailable. Refresh once online and retry.");return;}await flushPendingSave();const source=structuredClone(currentAudit),dialog=$("export-dialog");preparedPackage=null;$("export-result").classList.add("hidden");$("save-package-btn").classList.add("hidden");$("export-progress").classList.remove("hidden");$("export-progress-bar").value=0;dialog.showModal();try{const stored=await dbGetPhotosForAudit(source.auditId),readiness=WORKFLOW?.exportReadiness(source,CALC_ENGINE)||[];preparedPackage=await PACKAGE_EXPORT.build(source,stored,readiness,updatePackageProgress);const m=preparedPackage.manifest,c=m.counts,failed=m.integrity.status==="FAIL";$("export-progress").classList.add("hidden");$("export-result").classList.remove("hidden");$("export-result").innerHTML=`<h3>Audit Package ${failed?"Incomplete":"Ready"}</h3><div class="review-grid"><div class="metric"><strong>${c.systems}</strong><span>Systems</span></div><div class="metric"><strong>${c.equipment}</strong><span>Equipment</span></div><div class="metric"><strong>${c.measurements}</strong><span>Measurements</span></div><div class="metric"><strong>${c.photosExported}/${c.photosReferenced}</strong><span>Photos</span></div><div class="metric"><strong>${c.ecms}</strong><span>ECMs</span></div><div class="metric"><strong>${c.calculations}</strong><span>Calculations</span></div></div><p class="integrity-${m.integrity.status.toLowerCase()}"><strong>Integrity: ${m.integrity.status.replaceAll("_"," ")}</strong></p>${m.integrity.errors.length?`<details open><summary>${m.integrity.errors.length} error(s)</summary><ul>${m.integrity.errors.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul></details>`:""}${m.integrity.warnings.length?`<details><summary>${m.integrity.warnings.length} warning(s)</summary><ul>${m.integrity.warnings.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul></details>`:""}`;if(!failed||confirm("The package is incomplete and its manifest records FAIL. Save this expert-review package anyway?"))$("save-package-btn").classList.remove("hidden");}catch(error){console.error(error);$("export-progress").classList.add("hidden");$("export-result").classList.remove("hidden");$("export-result").innerHTML=`<h3>Export Failed</h3><p class="badge-critical">${escapeHtml(error.message||String(error))}</p><p>The audit and stored evidence were not modified.</p>`;}}
+async function exportAuditPackage(){if(!PACKAGE_EXPORT){alert("Professional export module is unavailable. Refresh once online and retry.");return;}await flushPendingSave();const source=structuredClone(currentAudit),dialog=$("export-dialog");source.utilityAnalysis=UTILITY_ANALYSIS?.analyze(source)||null;preparedPackage=null;$("export-result").classList.add("hidden");$("save-package-btn").classList.add("hidden");$("export-progress").classList.remove("hidden");$("export-progress-bar").value=0;dialog.showModal();try{const stored=await dbGetPhotosForAudit(source.auditId),readiness=WORKFLOW?.exportReadiness(source,CALC_ENGINE)||[];preparedPackage=await PACKAGE_EXPORT.build(source,stored,readiness,updatePackageProgress);const m=preparedPackage.manifest,c=m.counts,failed=m.integrity.status==="FAIL";$("export-progress").classList.add("hidden");$("export-result").classList.remove("hidden");$("export-result").innerHTML=`<h3>Audit Package ${failed?"Incomplete":"Ready"}</h3><div class="review-grid"><div class="metric"><strong>${c.systems}</strong><span>Systems</span></div><div class="metric"><strong>${c.equipment}</strong><span>Equipment</span></div><div class="metric"><strong>${c.measurements}</strong><span>Measurements</span></div><div class="metric"><strong>${c.photosExported}/${c.photosReferenced}</strong><span>Photos</span></div><div class="metric"><strong>${c.ecms}</strong><span>ECMs</span></div><div class="metric"><strong>${c.calculations}</strong><span>Calculations</span></div></div><p class="integrity-${m.integrity.status.toLowerCase()}"><strong>Integrity: ${m.integrity.status.replaceAll("_"," ")}</strong></p>${m.integrity.errors.length?`<details open><summary>${m.integrity.errors.length} error(s)</summary><ul>${m.integrity.errors.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul></details>`:""}${m.integrity.warnings.length?`<details><summary>${m.integrity.warnings.length} warning(s)</summary><ul>${m.integrity.warnings.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul></details>`:""}`;if(!failed||confirm("The package is incomplete and its manifest records FAIL. Save this expert-review package anyway?"))$("save-package-btn").classList.remove("hidden");}catch(error){console.error(error);$("export-progress").classList.add("hidden");$("export-result").classList.remove("hidden");$("export-result").innerHTML=`<h3>Export Failed</h3><p class="badge-critical">${escapeHtml(error.message||String(error))}</p><p>The audit and stored evidence were not modified.</p>`;}}
 
 function exportMigrationBackup(){
   if(!currentMigrationBackup?.audit){ alert("No migration backup is available for this audit."); return; }
@@ -1578,7 +1601,7 @@ async function deleteCurrentAudit(){
   await showDashboard();
 }
 async function copyPrompt(){
-  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V4.3 audit package. Read manifest.json first, treat audit.json as canonical, and use CSV/photo files as interoperable evidence. Respect provenance, evidence levels, calculation maturity, QA flags, method validation status, dependencies, revision history, stale status, and engineering readiness. Do not invent equipment specifications, measurements, schedules, utility rates, costs, or savings. Identify missing field and office information required for defensible calculations.`;
+  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V5.0 audit package. Read manifest.json first, treat audit.json as canonical, and use CSV/photo files as interoperable evidence. Respect utility baseline completeness, provenance, evidence levels, calculation maturity, QA flags, method validation status, dependencies, revision history, stale status, and engineering readiness. Do not invent equipment specifications, measurements, schedules, utility rates, costs, savings, billing periods, or weather effects.`;
   try{ await navigator.clipboard.writeText(prompt); alert("AI analysis prompt copied."); }catch{ alert(prompt); }
 }
 
@@ -1614,6 +1637,8 @@ $("add-utility-btn").onclick=openUtility;
 $("save-utility").onclick=saveUtilityMonth;
 $("cancel-utility").onclick=()=>$("utility-dialog").close();
 $("close-utility").onclick=()=>$("utility-dialog").close();
+$("save-utility-bill").onclick=saveUtilityBill;
+$("cancel-utility-bill").onclick=$("close-utility-bill").onclick=()=>$("utility-bill-dialog").close();
 
 $("add-ecm-btn").onclick=()=>openEcm(null);
 $("ecm-template").addEventListener("change",updateEcmTemplateInfo);
@@ -1642,4 +1667,4 @@ $("delete-audit-btn").onclick=deleteCurrentAudit;
 $("copy-prompt-btn").onclick=copyPrompt;
 
 showDashboard();
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=4.3.0").catch(console.error); }
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=5.0.0").catch(console.error); }

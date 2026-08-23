@@ -1,5 +1,16 @@
 # Changelog
 
+## V5.0 Utility Analysis & Energy Baseline — release candidate
+
+- Added additive multi-account utility bills with stable UUIDs, declared source, explicit units, billing dates/days, demand, cost boundaries, estimated flags, and offline manual entry.
+- Added conservative V4.x month conversion without invented dates, provider, meter, tariff, demand, usage, or cost; legacy fields remain intact.
+- Added deterministic completeness, annual/partial totals, daily normalization, EUI, demand intensity, seasonal characterization, baseload screening, blended rates, and facility ECM plausibility QA.
+- Added compact offline monthly charts with bill-list text equivalents.
+- Added explicitly labeled derived-rate calculation candidates and bill fingerprints; entered rates are never overwritten.
+- Expanded JSON and Professional Audit Package export; package format 2 validates utility relationships and exports account/bill CSV fields plus a manifest summary.
+- Added explicit CSV parsing/mapping architecture; interactive provider-header mapping is deferred to V5.0.x.
+- Kept audit schema 4, IndexedDB version 3, offline/GitHub Pages deployment, and V4.3 evidence and rollback protections.
+
 ## V4.3 Professional Audit Package Export — release candidate
 
 - Added local offline ZIP generation with `packageFormatVersion: 1` and no dependency or backend.

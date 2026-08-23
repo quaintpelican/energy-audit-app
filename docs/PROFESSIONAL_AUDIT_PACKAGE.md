@@ -1,4 +1,4 @@
-# Professional Audit Package — Format Version 1
+# Professional Audit Package — Format Version 2
 
 `audit.json` is the canonical structured dataset. CSV and image files are interoperable representations of the same audit evidence; they do not replace stable UUID relationships.
 
@@ -11,7 +11,7 @@
 
 ## Manifest and integrity
 
-The manifest records `packageFormatVersion`, audit/facility/date/app/schema identity, generation time, record and photo counts, and integrity warnings/errors. Status is `PASS`, `PASS_WITH_WARNINGS`, or `FAIL`. Any referenced photo without a readable IndexedDB Blob or legacy embedded image is an error and makes the package `FAIL`. Orphan photo Blobs and unresolved legacy ECM references are warnings. Broken system/equipment/ECM/calculation/dependency relationships are errors. Missing calculation source references are visible warnings.
+The manifest records `packageFormatVersion`, audit/facility/date/app/schema identity, generation time, record/photo/utility counts, a concise derived utility-analysis summary, and integrity warnings/errors. Status is `PASS`, `PASS_WITH_WARNINGS`, or `FAIL`. Utility account/bill UUID relationships are validated. Any referenced photo without a readable IndexedDB Blob or legacy embedded image is an error and makes the package `FAIL`. Orphan photo Blobs and unresolved legacy ECM references are warnings. Broken relationships are errors.
 
 ## Photo behavior
 
@@ -25,6 +25,8 @@ The zero-dependency writer uses the standard uncompressed ZIP storage method for
 
 - ZIP entries are stored rather than recompressed because Audist photos are already compressed and recompression would increase CPU/memory use.
 - iOS may impose device-dependent memory limits for exceptionally large audits; export progress remains visible, but no browser can guarantee a package larger than available memory.
-- Format version 1 uses ZIP32 and therefore does not support individual files or packages at/above 4 GiB.
+- Format version 2 uses ZIP32 and therefore does not support individual files or packages at/above 4 GiB.
 - Orphan Blobs are reported but not exported because they have no authoritative audit relationship.
 - CSV intentionally flattens a useful subset; complete fidelity remains in JSON.
+
+Format 2 expands `tables/utilities.csv` to one row per bill with account/provider/meter/rate schedule, billing dates/days, usage/unit, demand, separated charges where known, total cost, estimated flag, source, and notes. It does not change audit schema 4 or IndexedDB version 3.

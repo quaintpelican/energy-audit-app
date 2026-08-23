@@ -1,4 +1,8 @@
-# Calculation Library — V4.2
+# Calculation Library — V5.0
+
+## Facility utility methods
+
+The pure `utility-analysis.js` module adds deterministic purchased-energy aggregation, daily normalization, site EUI, demand intensity, historic blended rates, seasonal high/low characterization, and conservative baseload screening. Constants are 3.412 kBtu/kWh and 100 kBtu/therm. These methods do not alter the governing ECM registry and do not calculate savings. Derived rates may be explicitly selected as financial inputs and retain bill-dependent source fingerprints.
 
 The governing source is `ENGINEERING_CALCULATION_LIBRARY_CA.md` V1.1. `calculations.js` is the executable offline registry; it may implement only a method and status authorized by that library.
 

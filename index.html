@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="audist-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=4.3.0" />
+  <link rel="stylesheet" href="styles.css?v=5.0.0" />
   <title>Audist</title>
 </head>
 <body>
@@ -67,6 +67,7 @@
             </select>
           </label>
           <label>Conditioned Area (ft²)<input data-site="area" type="number" inputmode="decimal" /></label>
+          <label>Area Source / Provenance<input data-site="buildingAreaProvenance" placeholder="Plans, assessor record, measured…" /></label>
           <label>Operating Hours / Week<input data-site="hoursWeek" type="number" inputmode="decimal" /></label>
           <label>Audit Date<input data-site="auditDate" type="date" /></label>
         </div>
@@ -75,7 +76,7 @@
 
       <section class="card" id="utility-section">
         <div class="section-title">
-          <h2>2. Utility Data</h2><span id="utility-count" class="pill">0 months</span>
+          <h2>2. Utility Analysis</h2><span id="utility-count" class="pill">0 accounts</span>
         </div>
         <div class="grid">
           <label>Electric Rate ($/kWh)<input id="electric-rate" type="number" step="0.0001" inputmode="decimal" placeholder="0.25" /></label>
@@ -83,7 +84,8 @@
           <label>Gas Rate ($/therm)<input id="gas-rate" type="number" step="0.0001" inputmode="decimal" placeholder="2.00" /></label>
           <label>Utility Notes<input id="utility-notes" placeholder="Tariff, seasonal notes, anomalies..." /></label>
         </div>
-        <div class="section-title"><h3>Monthly Bills</h3><button class="secondary small" id="add-utility-btn">+ Month</button></div>
+        <div id="utility-analysis-summary" class="review-grid"></div>
+        <div class="section-title"><h3>Accounts &amp; Bills</h3><button class="secondary small" id="add-utility-btn">+ Account</button></div>
         <div id="utility-list" class="list compact"></div>
       </section>
 
@@ -238,20 +240,32 @@
   </dialog>
 
   <dialog id="utility-dialog">
-    <div class="dialog-head"><h3>Add Utility Month</h3><button class="secondary icon" id="close-utility">✕</button></div>
+    <div class="dialog-head"><h3>Add Utility Account</h3><button class="secondary icon" id="close-utility">✕</button></div>
     <div class="grid">
-      <label>Month<input id="uMonth" type="month" /></label>
-      <label>Electric Usage (kWh)<input id="uKwh" type="number" inputmode="decimal" /></label>
-      <label>Peak Demand (kW)<input id="uKw" type="number" inputmode="decimal" /></label>
-      <label>Electric Cost ($)<input id="uElectricCost" type="number" inputmode="decimal" /></label>
-      <label>Gas Usage (therms)<input id="uTherms" type="number" inputmode="decimal" /></label>
-      <label>Gas Cost ($)<input id="uGasCost" type="number" inputmode="decimal" /></label>
+      <label>Utility Type<select id="uType"><option>Electricity</option><option>Natural Gas</option><option>Water</option><option>Other Fuel</option></select></label>
+      <label>Account Label<input id="uLabel" placeholder="Main electric meter" /></label>
+      <label>Provider<input id="uProvider" /></label><label>Meter Number<input id="uMeter" /></label>
+      <label>Rate Schedule<input id="uRateSchedule" /></label><label>Service Address<input id="uAddress" /></label>
     </div>
     <label>Notes<input id="uNotes" /></label>
     <div class="actions">
       <button class="secondary" id="cancel-utility">Cancel</button>
-      <button id="save-utility">Save Month</button>
+      <button id="save-utility">Save Account</button>
     </div>
+  </dialog>
+
+  <dialog id="utility-bill-dialog">
+    <div class="dialog-head"><h3>Add Utility Bill</h3><button class="secondary icon" id="close-utility-bill">✕</button></div>
+    <input id="uBillAccountId" type="hidden" />
+    <div class="grid">
+      <label>Billing Start<input id="uBillStart" type="date" /></label><label>Billing End<input id="uBillEnd" type="date" /></label>
+      <label>Usage<input id="uBillUsage" type="number" step="any" inputmode="decimal" /></label><label>Usage Unit<input id="uBillUnit" placeholder="kWh, therms, gallons" /></label>
+      <label>Peak Demand (kW)<input id="uBillDemand" type="number" step="any" inputmode="decimal" /></label><label>Total Cost ($)<input id="uBillCost" type="number" step="any" inputmode="decimal" /></label>
+      <label>Energy Cost ($)<input id="uBillEnergyCost" type="number" step="any" /></label><label>Demand Cost ($)<input id="uBillDemandCost" type="number" step="any" /></label>
+      <label>Fixed Charges ($)<input id="uBillFixed" type="number" step="any" /></label><label>Taxes / Other ($)<input id="uBillTaxes" type="number" step="any" /></label>
+      <label>Source<select id="uBillSource"><option>Manual Entry</option><option>Utility Bill</option><option>Utility CSV</option><option>Estimated</option><option>Assumed</option></select></label><label class="check-label"><input id="uBillEstimated" type="checkbox" /> Estimated bill</label>
+    </div><label>Notes<input id="uBillNotes" /></label>
+    <div class="actions"><button class="secondary" id="cancel-utility-bill">Cancel</button><button id="save-utility-bill">Save Bill</button></div>
   </dialog>
 
   <dialog id="ecm-dialog">
@@ -311,10 +325,11 @@
     </div>
   </dialog>
 
-  <script src="db.js?v=4.3.0"></script>
-  <script src="calculations.js?v=4.3.0"></script>
-  <script src="workflow.js?v=4.3.0"></script>
-  <script src="package-export.js?v=4.3.0"></script>
-  <script src="app.js?v=4.3.0"></script>
+  <script src="db.js?v=5.0.0"></script>
+  <script src="calculations.js?v=5.0.0"></script>
+  <script src="utility-analysis.js?v=5.0.0"></script>
+  <script src="workflow.js?v=5.0.0"></script>
+  <script src="package-export.js?v=5.0.0"></script>
+  <script src="app.js?v=5.0.0"></script>
 </body>
 </html>

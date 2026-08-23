@@ -1,6 +1,8 @@
-# Audist Data Schema — V4.3
+# Audist Data Schema — V5.0
 
 V4.3 retains audit schema `4` and IndexedDB database version `3`. The canonical audit continues to include `systems[]`, `equipment[]`, `ecms[]`, and `calculations[]`, with optional additive `equipmentGroups[]`. Existing schema-4 audit data is not rewritten on open.
+
+V5.0 keeps those versions and adds optional `utilityAccounts[]` inside the audit object. Account and bill UUIDs are stable and unique; every bill repeats its parent `utilityAccountId`. Legacy `utility` is retained. Only audits containing legacy monthly data receive an additive conversion and migration backup; empty V4.x audits remain byte-equivalent on open. See `UTILITY_ANALYSIS.md`.
 
 ## Workflow additions
 
@@ -33,7 +35,7 @@ An ECM may contain `calculationIds[]`. Editing an ECM preserves this and all unr
 
 ## Export container
 
-The professional package has independent `packageFormatVersion: 1`; this does not change audit schema 4. The exported audit copy may add derived `engineeringAnalysis` and photo `packagePath`/MIME metadata. The stored audit is not changed. Stable UUIDs remain authoritative; filenames are presentation only.
+The professional package has independent `packageFormatVersion: 2`; this does not change audit schema 4. The exported audit copy may add derived `engineeringAnalysis`, `utilityAnalysis`, and photo `packagePath`/MIME metadata. The stored audit is not changed. Stable UUIDs remain authoritative; filenames are presentation only.
 
 ## Compatibility
 
