@@ -1,4 +1,4 @@
-# Calculation Library — V5.2
+# Calculation Library — V5.3
 
 ## Facility utility methods
 
@@ -8,7 +8,7 @@ The governing source is `ENGINEERING_CALCULATION_LIBRARY_CA.md` V1.1. `calculati
 
 V4.2 adds workflow metadata, not formulas. Every input is classified by collection timing. Deterministic auto-binding considers only associated equipment/group records, utility/ECM values, or approved upstream calculation outputs; preserves provenance and stable source references; surfaces conflicts; and requires explicit selection for equal-priority conflicting evidence. Proposed conditions remain explicit user inputs.
 
-## Implemented `READY-V1` inventory (25)
+## Implemented inventory (29)
 
 - General/electrical: `CALC-GEN-001`, `CALC-ELEC-001`, `CALC-ELEC-002`.
 - Lighting/HVAC/fans: `CALC-LTG-001`, `CALC-LTG-002`, `CALC-HVAC-001`, `CALC-FAN-001`, `CALC-FAN-002`.
@@ -18,9 +18,11 @@ V4.2 adds workflow metadata, not formulas. Every input is classified by collecti
 
 Each method has explicit applicability, formula, required/optional inputs, canonical units, output units, evidence policy, warnings, QA rules, and deterministic test cases. No implicit unit conversion, default efficiency, tariff, schedule, COP, weather profile, cost, or savings factor is used.
 
-## `VALIDATE-V2` registry/readiness inventory (11)
+V5.3 additionally implements `CALC-HVAC-002`, `CALC-CHW-002`, `CALC-REF-003`, and `CALC-PLUG-001` under the validated V1.2 addendum in the governing library. See `ADVANCED_CALCULATIONS.md` for formulas and boundaries.
 
-`CALC-HVAC-002`, `CALC-HVAC-003`, `CALC-CTRL-001`, `CALC-CHW-002`, `CALC-REF-002`, `CALC-REF-003`, `CALC-FOOD-001`, `CALC-KV-001`, `CALC-PLUG-001`, `CALC-RCX-001`, and `CALC-FIN-003` are recognized but not numerically implemented. They expose applicable systems, required/recommended evidence, warnings, and readiness. Running one returns `METHOD_REQUIRES_VALIDATION` with no output and cannot be presented as savings.
+## `VALIDATE-V2` registry/readiness inventory (7)
+
+`CALC-HVAC-003`, `CALC-CTRL-001`, `CALC-REF-002`, `CALC-FOOD-001`, `CALC-KV-001`, `CALC-RCX-001`, and `CALC-FIN-003` are recognized but not numerically implemented. They expose applicable systems, required/recommended evidence, warnings, and readiness. Running one returns `METHOD_REQUIRES_VALIDATION` with no output and cannot be presented as savings.
 
 ## Components, dependencies, and interactions
 

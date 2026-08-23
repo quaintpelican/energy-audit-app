@@ -5,7 +5,7 @@
 })(typeof globalThis!=="undefined"?globalThis:this,function(){
   "use strict";
 
-  const VERSION="1.1";
+  const VERSION="1.2";
   const READY="READY-V1";
   const VALIDATE="VALIDATE-V2";
   const DIRECT_PROVENANCE=new Set(["Measured","BAS / Trend","Utility Bill","Nameplate","Manufacturer","Calculated"]);
@@ -17,7 +17,7 @@
     "W","kW","kWh","kWh/yr","V","A","fraction","Hz","rpm","%","gpm","ft head","cfm","Btu/h","Btu","Btu/yr",
     "therm/yr","MMBtu","ton","°F","Δ°F","Btu/lb","gallons/day","days/year","hr/yr","kW/ton","kW/100 cfm",
     "COP","Btu/(hr·ft²·°F)","ft²","degree-hours","$/kWh","$/kW","$/yr","$","yr","hp","count",
-    "speed fraction, hr","kWh and $/kWh","kW and $/kW","year and $"
+    "speed fraction, hr","kWh and $/kWh","kW and $/kW","year and $","HVAC performance bins","chiller performance bins"
   ]);
 
   const numeric=value=>typeof value==="number"?value:Number(value);
@@ -35,7 +35,7 @@
   const method=(methodId,title,definition)=>({
     methodId,title,version:VERSION,status:READY,implementationStatus:"IMPLEMENTED",recommendedInputs:[],
     evidenceRequirements:"Every material input requires an explicit unit, provenance, evidence level, and source or assumption description. Estimated/Assumed inputs require a rationale; Level D caps maturity at SCREENING.",
-    sourceReferenceBasis:"Audist Engineering Calculation Library CA V1.1",
+    sourceReferenceBasis:"Audist Engineering Calculation Library CA V1.2",
     numericalTestCases:`Automated deterministic cases: tests/calculations.test.js (${methodId}).`,
     ...definition
   });
@@ -229,21 +229,54 @@
   function validateMethods(){
     const commonEvidence=["equipment association","baseline definition","proposed definition","affected operation","provenance"];
     return [
-      pending("CALC-HVAC-002","Unitary HVAC Efficiency Upgrade",["PackagedHVAC"],[input("baselineEfficiency","Baseline Efficiency","fraction"),input("proposedEfficiency","Proposed Efficiency","fraction"),input("loadProfile","Load Profile","kWh/yr")],[...commonEvidence,"weather/load profile","fan interaction","manufacturer performance"],["No flat efficiency or percent-savings assumption is permitted."]),
       pending("CALC-HVAC-003","Economizer Repair / Optimization",["PackagedHVAC","AirHandling","BASControls"],[input("outsideAirTemperature","Outside-Air Temperature","°F"),input("returnAirTemperature","Return-Air Temperature","°F"),input("supplyAirTemperature","Supply-Air Temperature","°F")],[...commonEvidence,"weather bins/hourly data","OA/RA psychrometrics","minimum ventilation","cooling efficiency","control limits"],["Do not use a flat percent savings assumption."]),
       pending("CALC-CTRL-001","BAS / HVAC Controls",["BASControls","PackagedHVAC","AirHandling","ChilledWater","BoilersHeatingWater"],[input("baselineAffectedKw","Affected Baseline Power","kW"),input("baselineHours","Baseline Hours","hr/yr")],[...commonEvidence,"specific control sequence","trends before/after","affected loads"],["Calculate specific control changes; no generic BAS savings percentage."]),
-      pending("CALC-CHW-002","Chiller Efficiency / Plant Optimization",["ChilledWater"],[input("baselinePlantKw","Baseline Plant Power","kW"),input("coolingTons","Cooling Load","ton")],[...commonEvidence,"simultaneous load/kW","part-load profile","condenser conditions","plant boundary","staging","proposed performance"],["Do not mix chiller-only and plant boundaries."]),
       pending("CALC-REF-002","Refrigeration Floating Head Pressure",["Refrigeration"],[input("baselineRackKw","Baseline Rack Power","kW")],[...commonEvidence,"compressor/rack performance","ambient distribution","condensing controls","minimum pressure"],["Weather/load and compressor performance methodology requires validation."]),
-      pending("CALC-REF-003","Anti-Sweat Heater Controls",["Refrigeration"],[input("connectedHeaterKw","Connected Heater Load","kW"),input("baselineHours","Baseline Hours","hr/yr")],[...commonEvidence,"baseline duty","proposed duty/control","ambient conditions"],["Do not assume a generic duty-cycle reduction."]),
       pending("CALC-FOOD-001","Commercial Food-Service Equipment",["ProcessLoads","Other"],[input("baselineAnnualEnergy","Baseline Annual Energy","kWh/yr"),input("proposedAnnualEnergy","Proposed Annual Energy","kWh/yr")],[...commonEvidence,"specific appliance class","measured or standardized/manufacturer performance","usage profile"],["No generic appliance savings percentage."]),
       pending("CALC-KV-001","Demand-Control Kitchen Ventilation",["Fans","AirHandling","ProcessLoads"],[input("baselineFanKw","Baseline Fan Power","kW"),input("baselineHours","Baseline Hours","hr/yr")],[...commonEvidence,"proposed speed profile","makeup-air heating/cooling interaction","hood control strategy"],["Direct fan savings may use CALC-FAN-002; thermal interactions remain separate components."]),
-      pending("CALC-PLUG-001","Plug-Load Scheduling / Controls",["PlugLoads"],[input("controlledKw","Controlled Load","kW"),input("verifiedAvoidedHours","Verified Avoided Hours","hr/yr")],[...commonEvidence,"verified schedule/avoidance"],["Avoid generic percent savings unless explicitly documented as a screening assumption."]),
       pending("CALC-RCX-001","Retrocommissioning / Operational Measures",["BASControls","Other"],[],[...commonEvidence,"explicit individual operational changes","before/after trends"],["Represent RCx as explicit component calculations, not one generic percentage."]),
       pending("CALC-FIN-003","Savings-to-Investment Ratio",["Financial"],[input("presentValueSavings","Present Value of Savings","$"),input("presentValueInvestmentCosts","Present Value of Investment-Related Costs","$")],[...commonEvidence,"replacement/residual/cost boundaries","NIST/FEMP definition"],["SIR remains unimplemented until lifecycle cost boundaries are defined."])
     ];
   }
 
-  const METHOD_REGISTRY=Object.fromEntries([...readyMethods(),...validateMethods()].map(x=>[x.methodId,Object.freeze(x)]));
+  function advancedMethods(){
+    const boundaries=["Chiller only","Chiller + pumps","Full plant"];
+    return [
+      method("CALC-HVAC-002","Unitary HVAC Efficiency Upgrade",{
+        applicableSystemTypes:["PackagedHVAC"],
+        applicability:"Annual cooling load with baseline and proposed COP on the same explicit equipment/fan boundary. EER, IEER, SEER, and SEER2 must be converted outside this method using a documented, applicable basis; nominal capacity is not annual load.",
+        formula:"Baseline input kWh = Annual cooling load Btu / 3,412 / Baseline COP; Proposed input kWh = Annual cooling load Btu / 3,412 / Proposed COP; Savings = Baseline - Proposed",
+        inputs:[input("annualCoolingLoadBtu","Supported Annual Cooling Load","Btu/yr"),input("baselineCop","Baseline Representative Cooling COP","COP",{minExclusive:0}),input("proposedCop","Proposed Representative Cooling COP","COP",{minExclusive:0,allowedProvenance:["Manufacturer","Calculated","BAS / Trend","Measured"]}),enumInput("efficiencyMetricBasis","Efficiency Metric Basis",["COP — representative annual","COP — bin weighted"]),enumInput("fanEnergyBoundary","Fan Energy Boundary",["Excluded from both","Included in both"])],
+        recommendedInputs:["weather/load profile","part-load bins","manufacturer source document","operating schedule"],outputs:["baselineElectricKwh","proposedElectricKwh","annualKwhSavings"],
+        warnings:["Do not mix EER, IEER, SEER, SEER2, and COP.","Nameplate tons are not annual cooling load.","Representative COP is appropriate only when its annual or bin-weighted basis is supported."],
+        validate(i){const e=[];if(val(i,"proposedCop")<=val(i,"baselineCop"))e.push("Proposed COP must exceed baseline COP for an efficiency-savings result.");return e;},
+        calculate(i){const load=val(i,"annualCoolingLoadBtu")/3412,b=load/val(i,"baselineCop"),p=load/val(i,"proposedCop");return [output("baselineElectricKwh","Baseline Cooling Input","kWh/yr",b),output("proposedElectricKwh","Proposed Cooling Input","kWh/yr",p),output("annualKwhSavings","Annual Cooling Energy Savings","kWh/yr",b-p)];}
+      }),
+      method("CALC-CHW-002","Chiller Efficiency / Plant Optimization",{
+        applicableSystemTypes:["ChilledWater"],applicability:"Annual bin integration using simultaneous cooling load/hour bins and boundary-consistent baseline/proposed kW/ton performance.",
+        formula:"Annual energy = Σ(Tons_bin × kW/ton_bin × Hours_bin); Savings = Baseline annual energy - Proposed annual energy",
+        inputs:[seriesInput("performanceBins","Load / Performance Bins","chiller performance bins",[{id:"tons",type:"number",min:0},{id:"hours",type:"number",min:0},{id:"baselineKwPerTon",type:"number",min:0},{id:"proposedKwPerTon",type:"number",min:0}]),enumInput("baselineElectricalBoundary","Baseline Electrical Boundary",boundaries),enumInput("proposedElectricalBoundary","Proposed Electrical Boundary",boundaries),enumInput("performanceBasis","Proposed Performance Basis",["Manufacturer map","Measured/BAS trend","Site-specific engineering model"]),enumInput("simultaneousMeasurements","Load and Baseline Performance Simultaneous",["Yes","No","Unknown"],{mustEqual:"Yes"})],
+        recommendedInputs:["condenser-water conditions","chilled-water temperatures","staging","pump/tower component calculations"],outputs:["baselineElectricKwh","proposedElectricKwh","annualKwhSavings"],
+        warnings:["Do not substitute nominal IPLV/NPLV for site annual performance without explicitly qualifying the approximation.","Loads and electrical power must represent simultaneous conditions."],
+        validate(i){const errors=[],bins=get(i,"performanceBins")?.value||[];if(get(i,"baselineElectricalBoundary")?.value!==get(i,"proposedElectricalBoundary")?.value)errors.push("Baseline and proposed chiller/plant electrical boundaries must match.");if(bins.reduce((s,b)=>s+numeric(b.hours),0)>8760)errors.push("Chiller performance bin hours cannot exceed 8,760.");if(bins.some(b=>numeric(b.proposedKwPerTon)>numeric(b.baselineKwPerTon)))errors.push("Proposed kW/ton cannot exceed baseline kW/ton for an efficiency-savings result.");return errors;},
+        calculate(i){const totals=get(i,"performanceBins").value.reduce((s,b)=>({base:s.base+numeric(b.tons)*numeric(b.baselineKwPerTon)*numeric(b.hours),proposed:s.proposed+numeric(b.tons)*numeric(b.proposedKwPerTon)*numeric(b.hours)}),{base:0,proposed:0});return [output("baselineElectricKwh","Baseline Annual Energy","kWh/yr",totals.base),output("proposedElectricKwh","Proposed Annual Energy","kWh/yr",totals.proposed),output("annualKwhSavings","Annual Chiller/Plant Savings","kWh/yr",totals.base-totals.proposed)];}
+      }),
+      method("CALC-REF-003","Anti-Sweat Heater Controls",{
+        applicableSystemTypes:["Refrigeration"],applicability:"Anti-sweat heater control with supported connected load, baseline/proposed duty cycles, and annual energized hours.",
+        formula:"Savings = Connected kW × (Baseline duty - Proposed duty) × Annual hours",
+        inputs:[input("connectedHeaterKw","Connected Heater Load","kW"),input("baselineDutyFraction","Baseline Duty Cycle","fraction",{max:1}),input("proposedDutyFraction","Proposed Controlled Duty","fraction",{max:1}),input("annualHours","Annual Energized Hours","hr/yr")],recommendedInputs:["ambient humidity trend","controller sequence","manufacturer control basis"],outputs:["annualKwhSavings"],warnings:["Proposed duty requires an explicit site, trend, control, or manufacturer basis."],
+        validate(i){return val(i,"proposedDutyFraction")<=val(i,"baselineDutyFraction")?[]:["Proposed duty cannot exceed baseline duty for an avoided-energy result."];},
+        calculate(i){return [output("annualKwhSavings","Annual Anti-Sweat Heater Savings","kWh/yr",val(i,"connectedHeaterKw")*(val(i,"baselineDutyFraction")-val(i,"proposedDutyFraction"))*val(i,"annualHours"))];}
+      }),
+      method("CALC-PLUG-001","Plug-Load Scheduling / Controls",{
+        applicableSystemTypes:["PlugLoads"],applicability:"Controlled plug load with a representative measured/inventoried load and verified avoided operating hours.",formula:"Savings = Controlled Load kW × Verified Avoided Hours",
+        inputs:[input("controlledKw","Controlled Load","kW"),input("verifiedAvoidedHours","Verified Avoided Hours","hr/yr")],recommendedInputs:["occupancy schedule","control sequence","representative measurement period"],outputs:["annualKwhSavings"],warnings:["Generic reduction percentages are not accepted by this method."],
+        calculate(i){return [output("annualKwhSavings","Annual Plug-Load Savings","kWh/yr",val(i,"controlledKw")*val(i,"verifiedAvoidedHours"))];}
+      })
+    ];
+  }
+
+  const METHOD_REGISTRY=Object.fromEntries([...readyMethods(),...advancedMethods(),...validateMethods()].map(x=>[x.methodId,Object.freeze(x)]));
 
   function validateSeries(requirement,value){
     const errors=[];
@@ -332,6 +365,11 @@
     if(m==="CALC-UTIL-001")add("BLENDED_RATE_SIMPLIFICATION","A single/blended energy rate is a simplification.");
     if(m==="CALC-UTIL-003")add("DEMAND_COINCIDENCE_REQUIRED","Demand savings require explicit peak-coincidence evidence.");
     if(m==="CALC-ENV-001")add("ENVELOPE_NOT_UTILITY_SAVINGS","Envelope conductive-load output is not utility savings without a separate HVAC conversion.");
+    if(m==="CALC-HVAC-002"&&get(inputs,"annualCoolingLoadBtu")?.provenance==="Nameplate")add("NAMEPLATE_CAPACITY_NOT_ANNUAL_LOAD","Nameplate capacity cannot be used as annual cooling load.","error");
+    if(m==="CALC-HVAC-002"&&get(inputs,"proposedCop")?.provenance!=="Manufacturer")add("PROPOSED_PERFORMANCE_SOURCE_REVIEW","Proposed performance is not directly identified as manufacturer evidence.");
+    if(m==="CALC-CHW-002"&&get(inputs,"performanceBasis")?.value==="Manufacturer map")add("MANUFACTURER_MAP_CONDITIONS_REVIEW","Confirm every manufacturer performance point matches the recorded load and water/ambient conditions.");
+    if(m==="CALC-REF-003")add("ANTI_SWEAT_DUTY_BASIS_REVIEW","Confirm proposed duty cycle against the documented control and ambient basis.");
+    if(m==="CALC-PLUG-001"&&get(inputs,"verifiedAvoidedHours")?.provenance==="Assumed")add("GENERIC_PLUG_REDUCTION_SCREENING","Assumed avoided hours are screening evidence only.");
     const associated=new Set(context.ecm?.affectedEquipmentRecordIds||[]);
     inputs.filter(x=>["equipment","measurement"].includes(x.sourceKind)).forEach(x=>{if(x.equipmentRecordId&&!associated.has(x.equipmentRecordId))add("EQUIPMENT_NOT_ON_ECM",`${x.displayName} uses equipment not associated with this ECM.`);});
     const kwh=outputs.find(x=>x.parameterId==="annualKwhSavings")?.value,facilityKwh=annualUtility(context.audit,"kwh");

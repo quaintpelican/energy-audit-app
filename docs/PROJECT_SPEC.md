@@ -155,3 +155,7 @@ End-use energy must come from explicit baseline calculation outputs or auditor-e
 
 **Standalone ECM savings must not be assumed additive.** Portfolio analysis is separate from authoritative standalone calculations. Audist may detect shared boundaries, preserve engineer-confirmed sequence, calculate only transparent approved remaining-baseline interactions, and warn; it may not invent factors, choose alternatives, optimize opaquely, hide adjustments, or force reconciliation. Negative baselines and incompatible alternatives invalidate combined results. See `ECM_PORTFOLIO_INTERACTIONS.md`.
 
+## V5.3 advanced-method principle
+
+Advanced calculations require explicit physical/control models and adequate field, weather, trend, or manufacturer evidence. A complex model does not automatically confer high confidence. Weather bins and performance points retain their source and conditions. RCx is a container of explicit submeasures, never a building-percent savings factor. When method definition or evidence is inadequate, Audist must preserve the opportunity and return a validation/more-data state with no numerical savings. See `ADVANCED_CALCULATIONS.md`.
+

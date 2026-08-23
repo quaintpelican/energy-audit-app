@@ -1,12 +1,12 @@
-# Audist — V5.2 ECM Portfolio & Interaction Analysis
+# Audist — V5.3 Advanced Calculations & Controls
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
-V5.2 adds explicit ECM scenarios, interaction screening, engineer-confirmed sequential remaining-baseline calculations, alternatives, combined economics, evidence/staleness QA, and package-format-4 export while preserving V5.1. **Standalone ECM savings must not be assumed additive.** See `docs/ECM_PORTFOLIO_INTERACTIONS.md`.
+V5.3 implements four newly validated, deterministic methods: unitary cooling efficiency from supported annual load and COP, chiller/plant bin integration with matched boundaries, anti-sweat heater controls, and verified plug-load scheduling. It also adds canonical weather-bin, manufacturer-performance, and RCx-container structures while explicitly refusing unvalidated economizer, BAS reset, floating-head, DCKV thermal, and HVAC-interaction savings.
 
 ## Portable audit package
 
-**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 4, record/photo/utility/end-use/portfolio counts, summarized utility, reconciliation, and portfolio analysis, warnings, errors, and integrity status. A referenced photo that cannot be packaged is always `FAIL`.
+**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 5, including weather, manufacturer-performance, and RCx counts. A referenced photo that cannot be packaged is always `FAIL`.
 
 The export is read-only. Current IndexedDB photo Blobs are processed sequentially without base64 conversion; legacy embedded data URLs remain exportable. The package uses sanitized human-readable paths while stable UUIDs remain authoritative. iPhone Web Share is used when file sharing is supported, with a standard download fallback.
 
@@ -18,7 +18,7 @@ Inputs are classified as `FIELD_REQUIRED`, `ANALYSIS_REQUIRED`, or `RECOMMENDED`
 
 ## V4.1 calculation baseline
 
-V4.1 implements all 25 `READY-V1` methods in the governing California V1.1 library. The registry covers general/electrical, lighting, HVAC schedule, fan and pump, water/chiller/air-side loads, boiler/DHW, refrigeration, compressed air, envelope, energy/TOU/demand cost, simple payback, and NPV. Eleven `VALIDATE-V2` entries are visible for field-readiness collection but always return `METHOD_REQUIRES_VALIDATION` and never generate savings.
+The registry now contains 29 implemented methods and seven validation-only entries. V5.3 adds `CALC-HVAC-002`, `CALC-CHW-002`, `CALC-REF-003`, and `CALC-PLUG-001`; every remaining validation-only entry returns `METHOD_REQUIRES_VALIDATION` and never generates savings.
 
 Every saved calculation contains the method/version, formula, exact input snapshot, units, provenance, evidence level, source references, assumptions, warnings, QA flags, outputs, maturity, explicit baseline/proposed/operation/end-use/energy-stream boundaries, ECM UUID, stable equipment UUIDs, dependencies, and prior revisions. Source changes propagate **Needs Recalculation** through dependency chains. Equipment display-ID renames do not break relationships.
 
@@ -36,7 +36,7 @@ Analysis Mode shows modeled energy, utility baseline, unassigned residual, signe
 
 ## Storage and migration
 
-V5.1 keeps audit schema version 4 and IndexedDB database version 3. `endUseModels[]` is additive and optional, so existing V5.0 audits require no migration and are not rewritten merely by opening them. Existing evidence, utility, migration-backup, unresolved-reference, and DB-v3 rollback protections remain in force.
+V5.3 keeps audit schema version 4 and IndexedDB database version 3. Optional `weatherDatasets[]`, `manufacturerPerformanceDatasets[]`, and `rcxContainers[]` are additive; existing audits require no migration or rewrite.
 
 ## Offline behavior and export
 
@@ -48,7 +48,7 @@ Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-
 
 ## iPhone release-candidate procedure
 
-1. Open the V5.2 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
+1. Open the V5.3 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
 2. Create/open a test audit containing two systems, two equipment records, measurements, a utility month, an ECM, and a saved calculation.
 3. Capture an Overview and Nameplate photo, background the app immediately, relaunch, and confirm both photos remain visible.
 4. Turn on Airplane Mode, fully close the Home Screen app, relaunch, and choose **Export Audit Package**.
@@ -58,7 +58,7 @@ Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-
 8. Confirm modeled electricity, utility baseline, residual, signed/absolute gap, coverage, and QA are understandable. Deliberately model more than the baseline and confirm Audist flags it without changing the entered value.
 9. Create a Recommended Portfolio with two overlapping ECMs. Confirm the interaction, enter the shared baseline, and set sequence. Verify standalone and adjusted values remain separately visible.
 10. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all nine files under `tables/` including portfolio/interaction CSVs, and every expected image under `photos/` open normally.
-11. Verify `manifest.json` reports `packageFormatVersion: 4`, matching portfolio/interaction/photo counts and all three analysis summaries.
+11. Verify `manifest.json` reports `packageFormatVersion: 5`, matching portfolio, weather, manufacturer-performance, RCx, and photo counts.
 12. Verify a CSV containing commas/notes opens with intact columns and that `audit.json` retains UUIDs, provenance, end-use sources, portfolio inclusion/sequence/interactions, standalone and adjusted results, assumptions, QA flags, and photo package paths.
 13. Return to Audist and confirm the audit, calculations, portfolios, estimates, and photos are unchanged. Delete one test photo Blob only in a disposable browser test environment, export again, and confirm integrity is `FAIL`, never a warning/pass.
 
@@ -77,7 +77,8 @@ Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-
 
 ## Known limitations
 
-- `VALIDATE-V2` methods collect readiness information only; their methodologies remain future engineering validation work.
+- Economizer, BAS/control reset, floating-head, DCKV composite thermal, RCx aggregation, and selected HVAC interactive-effect methods remain validation/readiness frameworks and do not calculate savings.
+- The V5.3 application accepts weather/performance evidence in canonical JSON and calculation series inputs; dedicated dataset import/edit screens remain future work.
 - Fan and pump affinity-law results remain screening/engineering estimates and require applicability review.
 - Interactive effects are separate components; the app flags likely overlap but does not automatically net competing ECMs.
 - Reconciliation does not weather-normalize, infer percentage disaggregation, allocate residuals, or perform hourly simulation.

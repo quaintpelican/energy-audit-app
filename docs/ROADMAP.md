@@ -1,5 +1,9 @@
 # Audist Roadmap
 
+## V5.3 advanced calculations — release candidate
+
+Implemented: four bounded advanced methods (`CALC-HVAC-002`, `CALC-CHW-002`, `CALC-REF-003`, `CALC-PLUG-001`), reusable offline weather/performance evidence validation, RCx container rules, advanced readiness, numerical tests, and package-format-5 canonical export. Economizer, BAS resets, floating head, DCKV thermal effects, and interactive HVAC effects remain explicitly unquantified pending method validation.
+
 ## V5.0 utility baseline — release candidate
 
 Implemented: account/bill evidence, legacy conversion, completeness and QA flags, complete-period purchased-energy/cost baseline, EUI/demand intensity, normalized and seasonal views, baseload screening, derived rates, ECM scale QA, manual-entry UI, offline charts, and package-format-2 export. The explicit CSV parser/mapping layer is present; provider-specific mapping UI is deferred.

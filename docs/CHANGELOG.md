@@ -1,5 +1,12 @@
 # Changelog
 
+## V5.3 Advanced Calculations & Controls — release candidate
+
+- Implemented unitary cooling efficiency from supported annual load/COP, boundary-consistent chiller performance-bin integration, anti-sweat heater duty controls, and verified plug-load scheduling.
+- Added strict weather-bin, manufacturer-performance, RCx-container, and advanced-readiness validation without online APIs or fabricated values.
+- Kept economizer, BAS resets, floating head, DCKV thermal effects, RCx aggregation, and selected HVAC/refrigeration interactions non-calculating until their methods are validated.
+- Advanced the professional package to format 5 while retaining audit schema 4 and IndexedDB version 3.
+
 ## V5.2 ECM Portfolio & Interaction Analysis — release candidate
 
 - Added optional multi-scenario `ecmPortfolios[]`, explicit ECM inclusion/sequence, recommendation statuses, option groups, interaction taxonomy, source fingerprints, and reproducible traces.

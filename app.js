@@ -1,4 +1,4 @@
-const APP_VERSION = "5.2";
+const APP_VERSION = "5.3";
 const SCHEMA_VERSION = 4;
 const CALC_ENGINE = globalThis.AudistCalculations;
 const WORKFLOW = globalThis.AudistWorkflow;
@@ -6,6 +6,7 @@ const PACKAGE_EXPORT = globalThis.AudistPackageExport;
 const UTILITY_ANALYSIS = globalThis.AudistUtilityAnalysis;
 const END_USE_ANALYSIS = globalThis.AudistEndUseAnalysis;
 const PORTFOLIO_ANALYSIS = globalThis.AudistPortfolioAnalysis;
+const ADVANCED_ANALYSIS = globalThis.AudistAdvancedAnalysis;
 
 let currentAudit = null;
 let activeMode="field";
@@ -263,7 +264,7 @@ function blankAudit(){
     equipment:[],
     ecms:[],
     calculations:[],equipmentGroups:[],
-    endUseModels:[],ecmPortfolios:[],
+    endUseModels:[],ecmPortfolios:[],weatherDatasets:[],manufacturerPerformanceDatasets:[],rcxContainers:[],
     metadata:{app:"Audist", appVersion:APP_VERSION, storage:"IndexedDB", intendedStandard:"ASHRAE Level 2 support"}
   };
 }
@@ -460,6 +461,12 @@ function validateAuditStructure(audit){
   const portfolioIds=(audit?.ecmPortfolios||[]).map(p=>p.portfolioId),ecmIdSet=new Set((audit?.ecms||[]).map(e=>e.ecmId));
   if(portfolioIds.some(id=>!String(id||"").trim())||new Set(portfolioIds).size!==portfolioIds.length) errors.push("Portfolio IDs must be present and unique.");
   (audit?.ecmPortfolios||[]).forEach(p=>{if(!Array.isArray(p.ecmIds)||p.ecmIds.some(id=>!ecmIdSet.has(id)))errors.push(`Portfolio ${p.portfolioId||"(unknown)"} references a missing ECM.`);if(!Array.isArray(p.sequence)||p.sequence.some(id=>!p.ecmIds.includes(id)))errors.push(`Portfolio ${p.portfolioId||"(unknown)"} has an invalid sequence.`);(p.interactionRecords||[]).forEach(r=>{if(!PORTFOLIO_ANALYSIS?.INTERACTION_TYPES.includes(r.interactionType)||(r.ecmIds||[]).some(id=>!p.ecmIds.includes(id)))errors.push(`Portfolio ${p.portfolioId||"(unknown)"} has an invalid interaction.`);});});
+  if(audit?.weatherDatasets!==undefined&&!Array.isArray(audit.weatherDatasets)) errors.push("weatherDatasets must be an array.");
+  if(audit?.manufacturerPerformanceDatasets!==undefined&&!Array.isArray(audit.manufacturerPerformanceDatasets)) errors.push("manufacturerPerformanceDatasets must be an array.");
+  if(audit?.rcxContainers!==undefined&&!Array.isArray(audit.rcxContainers)) errors.push("rcxContainers must be an array.");
+  (audit?.weatherDatasets||[]).forEach(d=>{const result=ADVANCED_ANALYSIS?.validateWeatherDataset(d);if(result&&!result.valid)errors.push(...result.errors.map(e=>`Weather dataset ${d.weatherDatasetId||"(unknown)"}: ${e}`));});
+  (audit?.manufacturerPerformanceDatasets||[]).forEach(d=>{const result=ADVANCED_ANALYSIS?.validatePerformanceDataset(d);if(result&&!result.valid)errors.push(...result.errors.map(e=>`Performance dataset ${d.performanceDatasetId||"(unknown)"}: ${e}`));});
+  (audit?.rcxContainers||[]).forEach(d=>{const result=ADVANCED_ANALYSIS?.validateRcxContainer(d,audit);if(result&&!result.valid)errors.push(...result.errors.map(e=>`RCx ${d.rcxId||"(unknown)"}: ${e}`));});
   if(errors.length) throw new Error(`Migration validation failed: ${errors.join(" ")}`);
   return true;
 }
@@ -1723,4 +1730,4 @@ $("delete-audit-btn").onclick=deleteCurrentAudit;
 $("copy-prompt-btn").onclick=copyPrompt;
 
 showDashboard();
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=5.2.0").catch(console.error); }
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=5.3.0").catch(console.error); }

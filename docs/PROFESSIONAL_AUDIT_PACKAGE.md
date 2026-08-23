@@ -1,4 +1,4 @@
-# Professional Audit Package — Format Version 4
+# Professional Audit Package — Format Version 5
 
 `audit.json` is the canonical structured dataset. CSV and image files are interoperable representations of the same audit evidence; they do not replace stable UUID relationships.
 
@@ -11,7 +11,7 @@
 
 ## Manifest and integrity
 
-The manifest records `packageFormatVersion`, audit/facility/date/app/schema identity, generation time, record/photo/utility/end-use/portfolio counts, concise utility, end-use, and portfolio summaries, and integrity warnings/errors. Status is `PASS`, `PASS_WITH_WARNINGS`, or `FAIL`. Utility, end-use, portfolio, ECM, and interaction relationships are validated. Any referenced photo without a readable IndexedDB Blob or legacy embedded image is an error and makes the package `FAIL`. Orphan photo Blobs and unresolved legacy ECM references are warnings. Broken relationships are errors.
+The manifest records `packageFormatVersion`, audit/facility/date/app/schema identity, generation time, record/photo/utility/end-use/portfolio/weather/performance/RCx counts, analysis summaries, and integrity warnings/errors. Status is `PASS`, `PASS_WITH_WARNINGS`, or `FAIL`. Any referenced photo without a readable IndexedDB Blob or legacy embedded image is an error and makes the package `FAIL`.
 
 ## Photo behavior
 
@@ -29,4 +29,4 @@ The zero-dependency writer uses the standard uncompressed ZIP storage method for
 - Orphan Blobs are reported but not exported because they have no authoritative audit relationship.
 - CSV intentionally flattens a useful subset; complete fidelity remains in JSON.
 
-Format 4 retains prior tables and adds portfolio and interaction CSVs with standalone-versus-adjusted savings, sequence, methods, economics, evidence, QA, and trace fields. Complete fidelity remains in JSON. It does not change audit schema 4 or IndexedDB version 3.
+Format 5 retains all nine prior CSV tables. Weather bins, conditioned manufacturer performance points, RCx containers, advanced calculations, dependencies, and interactions remain canonical in JSON because flattening them would discard engineering structure. It does not change audit schema 4 or IndexedDB version 3.

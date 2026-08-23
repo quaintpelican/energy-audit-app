@@ -1,4 +1,15 @@
-# Audist Engineering Calculation Library — California Base V1.1
+# Audist Engineering Calculation Library — California Base V1.2
+
+## V1.2 validated advanced-method addendum
+
+The following former validation-queue methods are now bounded for deterministic implementation. These definitions supersede their earlier queue descriptions only within the stated boundaries.
+
+- **CALC-HVAC-002 — IMPLEMENTED:** With a supported annual cooling load and representative baseline/proposed COP on the same fan boundary: `input kWh = annual cooling load Btu / 3,412 / COP`; savings are baseline minus proposed. EER, IEER, SEER, SEER2, and COP are not interchangeable. Nominal capacity is prohibited as annual load.
+- **CALC-CHW-002 — IMPLEMENTED:** For simultaneous, boundary-consistent performance bins: `annual kWh = Σ(tons × kW/ton × hours)`. Baseline and proposed electrical boundaries must match. Nominal IPLV/NPLV is not site annual performance without a visible qualification.
+- **CALC-REF-003 — IMPLEMENTED:** `connected heater kW × (baseline duty − proposed controlled duty) × annual hours`; both duties require an explicit basis.
+- **CALC-PLUG-001 — IMPLEMENTED:** `controlled kW × verified avoided hours`; generic reduction percentages are not accepted.
+
+`CALC-HVAC-003`, `CALC-CTRL-001`, `CALC-REF-002`, `CALC-KV-001`, `CALC-RCX-001`, and selected HVAC/refrigeration interactive effects remain **REQUIRES VALIDATION**. They must produce no numerical savings without a separately validated method.
 
 ## Purpose
 This library defines transparent, reproducible engineering calculation methods for Audist. It supports ASHRAE Level 2 audits without hidden AI estimates.
