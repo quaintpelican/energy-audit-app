@@ -1,0 +1,59 @@
+(function(root,factory){const api=factory();if(typeof module!=="undefined"&&module.exports)module.exports=api;root.AudistWorkflow=api;})(typeof globalThis!=="undefined"?globalThis:this,function(){
+"use strict";
+const VERSION="1.0";
+const RECIPES=Object.freeze({
+  lighting_led:["CALC-LTG-001"],lighting_controls:["CALC-LTG-002"],hvac_schedule:["CALC-HVAC-001"],hvac_vfd:["CALC-FAN-002"],
+  pump_vfd:["CALC-PUMP-002"],boiler_efficiency:["CALC-BLR-001"],hvac_economizer:["CALC-HVAC-003"],dhw_hpwh:["CALC-DHW-002"],dhw_tankless:["CALC-DHW-002"]
+});
+const FIELD_MAP=Object.freeze({
+ existingFixtureWatts:["existingWatts"],controlledLightingKw:["measuredKw","inputKw"],quantity:["quantity"],annualHours:["hoursAnnual"],baselineHours:["hoursAnnual"],
+ baselineAffectedKw:["measuredKw","inputKw"],baselineFanKw:["measuredKw","inputKw"],measuredFanKw:["measuredKw","inputKw"],baselinePumpKw:["measuredKw","inputKw"],
+ flowGpm:["flowGpm"],totalDynamicHeadFt:["headFt","totalDynamicHead"],specificGravity:["specificGravity"],pumpEfficiency:["pumpEfficiency"],motorEfficiency:["motorEfficiency"],
+ airflowCfm:["airflowCfm","designAirflow"],existingUFactor:["uFactor"],areaSqFt:["areaSqFt","area"],dailyGallons:["dailyGallons","hotWaterGallons"],
+ baselineEfficiency:["efficiency"],baselineFuelInputBtu:["annualFuelInputBtu"],annualUsefulBtu:["annualUsefulBtu"],baselineTechnology:["fuel"]
+});
+const PARAMETER_TERMS=Object.freeze({
+ baselineKw:["kw","power"],baselineAffectedKw:["kw","power"],measuredFanKw:["fan power","kw"],baselineFanKw:["fan power","kw"],baselinePumpKw:["pump power","kw"],
+ existingFixtureWatts:["fixture watts","watt"],controlledLightingKw:["lighting power","kw"],annualHours:["annual hours","runtime"],baselineHours:["annual hours","runtime"],
+ flowGpm:["flow","gpm"],totalDynamicHeadFt:["head","tdh"],airflowCfm:["airflow","cfm"],deltaTemperatureF:["delta t","temperature difference"],
+ outsideAirTemperature:["outside air","outdoor air"],returnAirTemperature:["return air"],supplyAirTemperature:["supply air"],specificPower:["specific power"]
+});
+const RANK={Measured:1,"BAS / Trend":2,Nameplate:4,Manufacturer:4,Calculated:3,"Utility Bill":3,Estimated:5,Assumed:6,"":7};
+const has=v=>v!==null&&v!==undefined&&v!=="";
+const evidence=p=>["Measured","Nameplate","Manufacturer","Utility Bill","BAS / Trend"].includes(p)?"A":p==="Estimated"?"C":p==="Assumed"?"D":"B";
+const norm=v=>JSON.stringify(v);
+function recipeMethods(ecm){return [...(ecm?.analysisRecipe?.methodIds||RECIPES[ecm?.templateKey]||[])];}
+function ensureRecipe(ecm){if(!ecm)return ecm;const ids=recipeMethods(ecm);if(ids.length&&!ecm.analysisRecipe)ecm.analysisRecipe={methodIds:ids,createdFromTemplate:ecm.templateKey,createdAt:new Date().toISOString()};return ecm;}
+function groupFor(audit,ecm){return (audit.equipmentGroups||[]).find(g=>g.groupId===ecm?.equipmentGroupId)||null;}
+function associatedIds(audit,ecm){const group=groupFor(audit,ecm);return [...new Set([...(ecm?.affectedEquipmentRecordIds||[]),...(group?.equipmentRecordIds||[])])];}
+function samplingContext(audit,ecm){const g=groupFor(audit,ecm);return g?.sampling?.representativeConfirmed?g.sampling:null;}
+function candidate(inputDef,data,extra={}){const p=extra.provenance||"";return {parameterId:inputDef.parameterId,value:data.value,unit:data.unit||inputDef.unit,provenance:p,evidenceLevel:extra.evidenceLevel||evidence(p),sourceDescription:extra.sourceDescription||"",sourceKind:extra.sourceKind,sourceRecordId:extra.sourceRecordId,sourceField:extra.sourceField,equipmentRecordId:extra.equipmentRecordId,sourceVersion:extra.sourceVersion,rank:extra.rank??RANK[p]??7};}
+function candidatesFor(audit,ecm,inputDef){
+ const out=[],accepted=(inputDef.acceptedUnits||[inputDef.unit]).map(x=>String(x).toLowerCase()),sample=samplingContext(audit,ecm),sampleIds=new Set(sample?.sampledEquipmentRecordIds||[]);
+ const saved=ecm?.analysisInputs?.[`${inputDef.parameterId}`];if(saved&&has(saved.value))out.push(candidate(inputDef,saved,{...saved,sourceKind:"ecm",sourceRecordId:ecm.ecmId,sourceField:`analysisInputs.${inputDef.parameterId}`,sourceDescription:saved.sourceDescription||`${ecm.ecmId} proposed/office input`,evidenceLevel:saved.evidenceLevel,provenance:saved.provenance,rank:0}));
+ (audit.equipment||[]).filter(eq=>associatedIds(audit,ecm).includes(eq.recordId)).forEach(eq=>{
+   (FIELD_MAP[inputDef.parameterId]||[]).forEach(field=>{if(has(eq[field])){const p=eq.fieldProvenance?.[field]||"";out.push(candidate(inputDef,{value:eq[field],unit:inputDef.unit},{provenance:p,sourceKind:"equipment",sourceRecordId:eq.recordId,equipmentRecordId:eq.recordId,sourceField:field,sourceDescription:`${eq.equipmentId} — ${field}`}));}});
+   (eq.measurements||[]).forEach(m=>{const label=String(m.parameter||"").toLowerCase(),terms=PARAMETER_TERMS[inputDef.parameterId]||[],unitOk=accepted.includes(String(m.unit||"").toLowerCase()),termOk=!terms.length||terms.some(t=>label.includes(t));if(has(m.value)&&unitOk&&termOk){let p=m.source||"Measured",desc=`${eq.equipmentId} measurement — ${m.parameter}`,sampled=sample&&sampleIds.has(eq.recordId);if(sampled){p="Estimated";desc+=` — representative sample ${sample.sampleSize}/${sample.populationSize}`;}out.push(candidate(inputDef,{value:m.numericValue??m.value,unit:m.unit},{provenance:p,sourceKind:"measurement",sourceRecordId:m.measurementId,equipmentRecordId:eq.recordId,sourceField:"value",sourceDescription:desc,evidenceLevel:sampled?"C":evidence(p),rank:sampled?3.5:undefined}));}});
+ });
+ const utilityMap={electricRate:["electricRate","$/kWh"],demandRate:["demandRate","$/kW"],gasRate:["gasRate","$/therm"]},u=utilityMap[inputDef.parameterId];if(u&&has(audit.utility?.[u[0]]))out.push(candidate(inputDef,{value:audit.utility[u[0]],unit:u[1]},{provenance:audit.utility?.rateProvenance||"Utility Bill",sourceKind:"utility",sourceRecordId:audit.auditId,sourceField:u[0],sourceDescription:`Facility utility — ${u[0]}`}));
+ (audit.calculations||[]).filter(c=>c.ecmId===ecm?.ecmId&&c.status==="Calculated").forEach(c=>{
+   (c.outputs||[]).filter(o=>accepted.includes(String(o.unit).toLowerCase())).forEach(o=>{
+     out.push(candidate(inputDef,o,{provenance:"Calculated",evidenceLevel:c.evidenceLevel||"B",sourceKind:"calculation",sourceRecordId:c.calculationId,sourceField:o.parameterId,sourceVersion:`${c.methodVersion}:${c.updatedAt||c.calculatedAt}`,sourceDescription:`${c.calculationId} — ${o.displayName}`}));
+   });
+ });
+ return out.sort((a,b)=>(a.rank-b.rank)||String(a.sourceDescription).localeCompare(String(b.sourceDescription)));
+}
+function bindInput(audit,ecm,inputDef){const candidates=candidatesFor(audit,ecm,inputDef),top=candidates[0],conflicts=[...new Set(candidates.filter(x=>has(x.value)).map(x=>norm([x.value,x.unit])))].length>1,sameRankConflict=top&&candidates.some((x,i)=>i&&x.rank===top.rank&&norm([x.value,x.unit])!==norm([top.value,top.unit]));return {inputDef,candidates,selected:sameRankConflict?null:top||null,conflict:conflicts,requiresSelection:Boolean(sameRankConflict)};}
+function methodReadiness(audit,ecm,method,engine){
+ const bindings=method.inputs.map(def=>bindInput(audit,ecm,def)),missingField=[],missingAnalysis=[],recommended=[];
+ bindings.forEach(b=>{const d=b.inputDef,available=b.selected&&has(b.selected.value)&&b.selected.provenance&&!b.requiresSelection;if(d.optional||d.timing==="RECOMMENDED"){if(!available)recommended.push(d.displayName);return;}if(!available)(d.timing==="ANALYSIS_REQUIRED"?missingAnalysis:missingField).push(d.displayName+(b.requiresSelection?" (choose conflicting source)":""));});
+ const material=bindings.map(b=>b.selected).filter(Boolean),levels=material.map(x=>x.evidenceLevel),achievableEvidenceLevel=levels.includes("D")?"D":levels.includes("C")?"C":levels.length&&levels.every(x=>x==="A")?"A":"B";
+ const validationOnly=method.status===engine.VALIDATE,status=missingField.length?"MISSING_FIELD_DATA":missingAnalysis.length?"NEEDS_OFFICE_INPUT":validationOnly?"METHOD_REQUIRES_VALIDATION":"READY_TO_CALCULATE";
+ return {methodId:method.methodId,status,fieldRequiredComplete:!missingField.length,analysisRequiredComplete:!missingAnalysis.length,missingFieldInputs:missingField,missingAnalysisInputs:missingAnalysis,recommendedInputs:[...recommended,...(method.recommendedInputs||[])],achievableEvidenceLevel,achievableMaturity:achievableEvidenceLevel==="D"?"SCREENING":achievableEvidenceLevel==="A"?"ENGINEERING_ESTIMATE":"SCREENING",bindings,conflicts:bindings.filter(x=>x.conflict).map(x=>({parameterId:x.inputDef.parameterId,requiresSelection:x.requiresSelection,candidates:x.candidates}))};
+}
+function engineeringReadiness(audit,ecm,engine){const methods=recipeMethods(ecm).map(id=>engine.METHOD_REGISTRY[id]).filter(Boolean),items=methods.map(m=>methodReadiness(audit,ecm,m,engine));const calc=(audit.calculations||[]).filter(c=>c.ecmId===ecm.ecmId),status=calc.some(c=>c.status==="Needs Recalculation")?"NEEDS_RECALCULATION":calc.some(c=>c.status==="Calculated")?"CALCULATED":items.some(x=>x.status==="MISSING_FIELD_DATA")?"MISSING_FIELD_DATA":items.some(x=>x.status==="NEEDS_OFFICE_INPUT")?"NEEDS_OFFICE_INPUT":items.length&&items.every(x=>x.status==="READY_TO_CALCULATE")?"READY_TO_CALCULATE":items.some(x=>x.status==="METHOD_REQUIRES_VALIDATION")?"METHOD_REQUIRES_VALIDATION":"NO_RECIPE";return {ecmId:ecm.ecmId,status,methods:items,fieldRequiredComplete:items.every(x=>x.fieldRequiredComplete),analysisRequiredComplete:items.every(x=>x.analysisRequiredComplete),missingFieldInputs:[...new Set(items.flatMap(x=>x.missingFieldInputs))],missingAnalysisInputs:[...new Set(items.flatMap(x=>x.missingAnalysisInputs))],recommendedInputs:[...new Set(items.flatMap(x=>x.recommendedInputs))]};}
+function analysisQueue(audit,engine){const groups={READY_TO_CALCULATE:[],NEEDS_OFFICE_INPUT:[],MISSING_FIELD_DATA:[],CALCULATED:[],NEEDS_RECALCULATION:[],METHOD_REQUIRES_VALIDATION:[],NO_RECIPE:[]};(audit.ecms||[]).forEach(ecm=>{const r=engineeringReadiness(audit,ecm,engine);groups[r.status].push({ecm,readiness:r});});return groups;}
+function fieldExitReview(audit,engine){const items=[];(audit.ecms||[]).forEach(ecm=>{const r=engineeringReadiness(audit,ecm,engine);r.missingFieldInputs.forEach(label=>items.push({kind:"ECM",recordId:ecm.ecmId,title:`${ecm.ecmId} — ${ecm.title}`,label}));});return items;}
+function exportReadiness(audit,engine){return (audit.ecms||[]).map(ecm=>{const r=engineeringReadiness(audit,ecm,engine);return {ecmId:ecm.ecmId,templateKey:ecm.templateKey,methodIds:recipeMethods(ecm),status:r.status,fieldDataComplete:r.fieldRequiredComplete,analysisDataComplete:r.analysisRequiredComplete,missingFieldInputs:r.missingFieldInputs,missingAnalysisInputs:r.missingAnalysisInputs,recommendedInputs:r.recommendedInputs,methods:r.methods.map(m=>({methodId:m.methodId,status:m.status,achievableEvidenceLevel:m.achievableEvidenceLevel,achievableMaturity:m.achievableMaturity,conflicts:m.conflicts.map(c=>({parameterId:c.parameterId,requiresSelection:c.requiresSelection,candidateCount:c.candidates.length}))}))};});}
+return {VERSION,RECIPES,recipeMethods,ensureRecipe,associatedIds,candidatesFor,bindInput,methodReadiness,engineeringReadiness,analysisQueue,fieldExitReview,exportReadiness};
+});

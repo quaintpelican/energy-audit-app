@@ -373,6 +373,12 @@ test("system and equipment relationship validation rejects orphaned equipment",(
   assert.throws(()=>vm.runInContext(`validateAuditStructure({auditId:"a",site:{},systems:[],equipment:[{recordId:"eq-1",equipmentId:"PUMP-01",systemRecordId:"missing"}],ecms:[],calculations:[]})`,context),/missing system/);
 });
 
+test("equipment group validation rejects orphaned membership and ECM group links",()=>{
+  const context=loadApp();
+  assert.throws(()=>vm.runInContext(`validateAuditStructure({auditId:"a",site:{},systems:[],equipment:[],equipmentGroups:[{groupId:"g1",name:"Bad",equipmentRecordIds:["missing"]}],ecms:[],calculations:[]})`,context),/group Bad references missing equipment/);
+  assert.throws(()=>vm.runInContext(`validateAuditStructure({auditId:"a",site:{},systems:[],equipment:[],equipmentGroups:[],ecms:[{ecmId:"e1",affectedEquipmentRecordIds:[],unresolvedEquipmentReferences:[],equipmentGroupId:"missing"}],calculations:[]})`,context),/references a missing equipment group/);
+});
+
 test("equipment duplication assigns a unique ID and excludes measurements and photos",async()=>{
   const context=loadApp();
   context.dbPutAudit=async audit=>audit;
@@ -549,4 +555,3 @@ test("ECM editing preserves calculation IDs and export-compatible complete calcu
   assert.equal(result.calculation.inputs[0].provenance,"Measured");
   assert.equal(result.calculation.outputs[0].value,30000);
 });
-

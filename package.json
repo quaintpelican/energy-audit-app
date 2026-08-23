@@ -1,5 +1,5 @@
 {
-  "name": "audist-v4-1-full-engineering-library-tests",
+  "name": "audist-v4-2-analysis-workflow-tests",
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.js"
@@ -8,4 +8,3 @@
     "fake-indexeddb": "^6.2.2"
   }
 }
-

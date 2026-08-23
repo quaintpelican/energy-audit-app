@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="audist-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=4.1.0" />
+  <link rel="stylesheet" href="styles.css?v=4.2.0" />
   <title>Audist</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V4.1 • Offline-first</p>
+      <p id="header-status">V4.2 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -43,8 +43,14 @@
         </div>
       </div>
       <div id="migration-warning" class="card migration-warning hidden" role="alert"></div>
+      <div class="mode-switch card" role="group" aria-label="Workflow mode"><button id="field-mode-btn" class="mode-button active">Field Mode</button><button id="analysis-mode-btn" class="mode-button secondary">Analysis Mode</button></div>
 
-      <section class="card">
+      <section class="card analysis-only hidden" id="analysis-queue-section">
+        <div class="section-title"><div><h2>Analysis Queue</h2><p class="muted">Collect once → auto-bind → calculate later → never re-enter.</p></div><button class="secondary small" id="manage-groups-btn">Equipment Groups</button></div>
+        <div id="analysis-queue" class="analysis-queue"></div>
+      </section>
+
+      <section class="card field-only">
         <div class="section-title">
           <h2>1. Site</h2><span class="pill">Autosaves</span>
         </div>
@@ -66,7 +72,7 @@
         <label>General Site Notes<textarea data-site="siteNotes" rows="3"></textarea></label>
       </section>
 
-      <section class="card">
+      <section class="card" id="utility-section">
         <div class="section-title">
           <h2>2. Utility Data</h2><span id="utility-count" class="pill">0 months</span>
         </div>
@@ -80,7 +86,7 @@
         <div id="utility-list" class="list compact"></div>
       </section>
 
-      <section class="card">
+      <section class="card field-only">
         <div class="section-title">
           <h2>3. System Inventory / Audit Scope</h2><span id="system-count" class="pill">0 present</span>
         </div>
@@ -93,7 +99,7 @@
         <div id="system-detail-list" class="list compact"></div>
       </section>
 
-      <section class="card">
+      <section class="card field-only">
         <div class="section-title">
           <h2>4. Equipment</h2><span id="equipment-count" class="pill">0</span>
         </div>
@@ -102,7 +108,7 @@
         <button id="add-equipment-btn">+ Add Equipment</button>
       </section>
 
-      <section class="card">
+      <section class="card field-only">
         <div class="section-title">
           <h2>5. ECM Opportunities</h2><span id="ecm-count" class="pill">0</span>
         </div>
@@ -117,6 +123,8 @@
               <option value="lighting_controls">Lighting Controls</option>
               <option value="dhw_hpwh">Heat Pump Water Heater</option>
               <option value="dhw_tankless">Tankless Water Heater</option>
+              <option value="pump_vfd">Pump VFD</option>
+              <option value="boiler_efficiency">Boiler Efficiency Upgrade</option>
             </select>
           </label>
           <div class="template-action"><button id="add-ecm-btn">+ Add ECM</button></div>
@@ -124,9 +132,10 @@
         <div id="ecm-list" class="list"></div>
       </section>
 
-      <section class="card">
+      <section class="card field-only">
         <h2>6. Audit Review</h2>
         <div id="review-summary" class="review-grid"></div>
+        <div class="subsection"><div class="section-title"><h3>Before Leaving Site</h3><span id="field-exit-count" class="pill">0 items</span></div><div id="field-exit-review" class="list compact"></div></div>
         <div class="actions">
           <button id="copy-prompt-btn">Copy AI Analysis Prompt</button>
         </div>
@@ -242,6 +251,7 @@
     <label>ECM Title<input id="ecmTitle" /></label>
     <label>Category<select id="ecmCategory"><option>HVAC</option><option>Lighting</option><option>DHW</option><option>Controls</option><option>Envelope</option><option>Other</option></select></label>
     <label>Affected Equipment<select id="ecmEquipment" multiple size="5"></select><small class="muted">Select one or more equipment records.</small></label>
+    <label>Equipment Group (optional)<select id="ecmGroup"><option value="">Individual equipment only</option></select></label>
     <label>Existing Condition<textarea id="ecmExisting" rows="2"></textarea></label>
     <label>Proposed Improvement<textarea id="ecmProposed" rows="2"></textarea></label>
     <label>Data Still Needed<textarea id="ecmMissing" rows="2"></textarea></label>
@@ -256,6 +266,17 @@
       <button class="secondary" id="cancel-ecm">Cancel</button>
       <button id="save-ecm">Save ECM</button>
     </div>
+  </dialog>
+
+  <dialog id="group-dialog">
+    <div class="dialog-head"><h3>Equipment Groups &amp; Sampling</h3><button class="secondary icon" id="close-group">✕</button></div>
+    <p class="muted">Grouping is explicit. Audist never assumes equipment are equivalent.</p>
+    <label>Group Name<input id="group-name" placeholder="RTU Group A"></label>
+    <label>Included Equipment<select id="group-equipment" multiple size="7"></select></label>
+    <div class="grid"><label>Population Size<input id="group-population" inputmode="numeric"></label><label>Sampled Equipment<select id="group-sampled" multiple size="5"></select></label></div>
+    <label class="scope-option"><input id="group-representative" type="checkbox"> Auditor confirms this sample is representative</label>
+    <div id="group-list" class="list compact"></div>
+    <div class="actions"><button class="secondary" id="cancel-group">Cancel</button><button id="save-group">Save Group</button></div>
   </dialog>
 
   <dialog id="calculation-dialog">
@@ -282,9 +303,9 @@
     </div>
   </dialog>
 
-  <script src="db.js?v=4.1.0"></script>
-  <script src="calculations.js?v=4.1.0"></script>
-  <script src="app.js?v=4.1.0"></script>
+  <script src="db.js?v=4.2.0"></script>
+  <script src="calculations.js?v=4.2.0"></script>
+  <script src="workflow.js?v=4.2.0"></script>
+  <script src="app.js?v=4.2.0"></script>
 </body>
 </html>
-

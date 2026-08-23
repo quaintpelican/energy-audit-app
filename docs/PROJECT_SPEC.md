@@ -132,6 +132,10 @@ For major decisions use:
 ## Release standard
 Use versions such as V3.1 and V4.0. Each release should identify changes, deployment steps, migration issues, limitations, and test procedures. Never claim functionality exists unless implemented in delivered code.
 
+## V4.2 workflow principle
+
+**Collect once → auto-bind → calculate later → never re-enter.** Field Mode optimizes collection and Before Leaving Site review. Analysis Mode organizes approved calculation work over the same canonical audit dataset. Field documentation completeness and calculation readiness are distinct; office-only inputs do not reduce field completeness. Auto-binding must be deterministic, preserve provenance and stable source references, surface conflicts, and never silently overwrite better evidence. Proposed conditions require explicit user entry. Representative sampling requires explicit group membership and auditor confirmation.
+
 ## Definition of success
 An experienced auditor can enter a facility with an iPhone, work offline, efficiently collect structured evidence, know before leaving whether critical information is missing, perform transparent calculations, and produce a defensible dataset that substantially reduces ASHRAE Level 2 reporting effort.
 

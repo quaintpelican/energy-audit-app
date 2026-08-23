@@ -1,8 +1,10 @@
-const APP_VERSION = "4.1";
+const APP_VERSION = "4.2";
 const SCHEMA_VERSION = 4;
 const CALC_ENGINE = globalThis.AudistCalculations;
+const WORKFLOW = globalThis.AudistWorkflow;
 
 let currentAudit = null;
+let activeMode="field";
 let activeType = "HVAC";
 let draftEquipment = null;
 let saveTimer = null;
@@ -237,7 +239,9 @@ const ECM_TEMPLATES = {
       {label:"Peak Flow / Load Information",measurement:["flow","gpm","load"],requireUnit:true},
       {label:"Nameplate Photo",photo:["Nameplate"]}
     ]
-  }
+  },
+  pump_vfd:{title:"Install Pump VFD",category:"HVAC",existing:"Constant-speed pump operation.",proposed:"Install VFD and modulate pump speed to system demand.",required:[{label:"Pump Power",measurement:["pump power","kw"],requireUnit:true},{label:"Operating Schedule",keys:["schedule"]},{label:"Speed / Load Profile",measurement:["speed","hz","flow"],requireUnit:true}],recommended:[{label:"Differential Pressure",measurement:["differential pressure","head"],requireUnit:true}]},
+  boiler_efficiency:{title:"Boiler Efficiency Upgrade",category:"HVAC",existing:"Existing boiler efficiency remains in service.",proposed:"Upgrade boiler efficiency with a documented proposed system.",required:[{label:"Baseline Efficiency",keys:["efficiency"]},{label:"Fuel / Useful Load Evidence",measurement:["fuel","load","btu"],requireUnit:true}],recommended:[{label:"Nameplate Photo",photo:["Nameplate"]}]}
 };
 
 function blankAudit(){
@@ -252,7 +256,7 @@ function blankAudit(){
     systems:[],
     equipment:[],
     ecms:[],
-    calculations:[],
+    calculations:[],equipmentGroups:[],
     metadata:{app:"Audist", appVersion:APP_VERSION, storage:"IndexedDB", intendedStandard:"ASHRAE Level 2 support"}
   };
 }
@@ -384,6 +388,18 @@ function validateAuditStructure(audit){
   (audit?.equipment||[]).forEach(eq=>{
     if(eq.systemRecordId&&!systemIds.includes(eq.systemRecordId)) errors.push(`Equipment ${eq.equipmentId||eq.recordId} references a missing system.`);
   });
+  if(audit?.equipmentGroups!==undefined&&!Array.isArray(audit.equipmentGroups)) errors.push("equipmentGroups must be an array when present.");
+  const groupIds=(audit?.equipmentGroups||[]).map(group=>group.groupId);
+  if(groupIds.some(id=>!String(id||"").trim())) errors.push("An equipment group UUID is missing.");
+  if(new Set(groupIds).size!==groupIds.length) errors.push("Equipment group UUIDs are not unique.");
+  (audit?.equipmentGroups||[]).forEach(group=>{
+    if(!Array.isArray(group.equipmentRecordIds)||group.equipmentRecordIds.some(id=>!recordIds.includes(id))) errors.push(`Equipment group ${group.name||group.groupId} references missing equipment.`);
+    const sample=group.sampling;
+    if(sample){
+      if(!sample.representativeConfirmed||!Array.isArray(sample.sampledEquipmentRecordIds)||sample.sampledEquipmentRecordIds.some(id=>!group.equipmentRecordIds.includes(id))) errors.push(`Equipment group ${group.name||group.groupId} has invalid representative sampling.`);
+      if(Number(sample.populationSize)<sample.sampledEquipmentRecordIds.length||Number(sample.sampleSize)!==sample.sampledEquipmentRecordIds.length) errors.push(`Equipment group ${group.name||group.groupId} has inconsistent sample counts.`);
+    }
+  });
   (audit?.ecms||[]).forEach(ecm=>{
     if(!Array.isArray(ecm.affectedEquipmentRecordIds)) errors.push(`ECM ${ecm.ecmId||"(unknown)"} has invalid UUID relationships.`);
     if(!Array.isArray(ecm.unresolvedEquipmentReferences||[])) errors.push(`ECM ${ecm.ecmId||"(unknown)"} has invalid unresolved relationships.`);
@@ -394,6 +410,7 @@ function validateAuditStructure(audit){
     (ecm.affectedEquipmentRecordIds||[]).forEach(id=>{
       if(!recordIds.includes(id)) errors.push(`ECM ${ecm.ecmId||"(unknown)"} references missing equipment UUID ${id}.`);
     });
+    if(ecm.equipmentGroupId&&!groupIds.includes(ecm.equipmentGroupId)) errors.push(`ECM ${ecm.ecmId||"(unknown)"} references a missing equipment group.`);
   });
   const ecmIds=(audit?.ecms||[]).map(ecm=>ecm.ecmId);
   const calculationIds=(audit?.calculations||[]).map(calculation=>calculation.calculationId);
@@ -869,6 +886,8 @@ async function deleteEquipment(id){
     alert(`This equipment is linked to ${linked.length} ECM(s). Remove those relationships before deleting it.`);
     return;
   }
+  const linkedGroups=(currentAudit.equipmentGroups||[]).filter(group=>(group.equipmentRecordIds||[]).includes(id));
+  if(linkedGroups.length){alert(`This equipment belongs to ${linkedGroups.length} explicit analysis group(s). Remove it from those groups before deleting it.`);return;}
   const linkedCalculations=(currentAudit.calculations||[]).filter(calculation=>(calculation.equipmentRecordIds||[]).includes(id)||(calculation.inputs||[]).some(input=>input.equipmentRecordId===id||input.sourceRecordId===id));
   if(linkedCalculations.length){alert(`This equipment is linked to ${linkedCalculations.length} calculation record(s). Remove or replace those calculation sources before deleting it.`);return;}
   if(!confirm("Delete this equipment record and its stored photos?")) return;
@@ -1085,6 +1104,7 @@ function evidenceForProvenance(provenance){
   return "B";
 }
 function sourceCandidate(inputDef,ecm){
+  if(WORKFLOW) return WORKFLOW.candidatesFor(currentAudit,ecm,inputDef);
   const accepted=(inputDef.acceptedUnits||[]).map(unit=>unit.toLowerCase());
   const candidates=[];
   const linked=currentAudit.equipment.filter(eq=>(ecm?.affectedEquipmentRecordIds||[]).includes(eq.recordId));
@@ -1171,12 +1191,13 @@ function renderCalculationInputs(existing=null){
   calculationSourceOptions={};
   $("calculation-method-description").innerHTML=`<strong>${escapeHtml(method.title)}</strong> <span class="pill">${escapeHtml(method.implementationStatus)}</span><p>${escapeHtml(method.applicability)}</p><code>${escapeHtml(method.formula)}</code>`;
   $("calculation-inputs").innerHTML=method.inputs.map(def=>{
-    const prior=existing?.inputs?.find(item=>item.parameterId===def.parameterId)||{};
+    const bound=!existing&&WORKFLOW?WORKFLOW.bindInput(currentAudit,ecm,def):null;
+    const prior=existing?.inputs?.find(item=>item.parameterId===def.parameterId)||bound?.selected||{};
     const candidates=sourceCandidate(def,ecm); calculationSourceOptions[def.parameterId]=candidates;
     const sourceIndex=candidates.findIndex(item=>item.sourceKind===prior.sourceKind&&item.sourceRecordId===prior.sourceRecordId&&item.sourceField===prior.sourceField);
     const value=def.type==="bins"?binsText(prior.value):def.type==="series"?seriesText(prior.value):prior.value??"";
     const valueControl=def.type==="bins"?`<textarea data-calc-value="${def.parameterId}" placeholder="0.50:1000, 0.75:2000">${escapeHtml(value)}</textarea>`:def.type==="series"?`<textarea data-calc-value="${def.parameterId}" rows="5" placeholder='[{"label":"Summer peak","kwh":1000,"rate":0.25}]'>${escapeHtml(value)}</textarea>`:def.type==="enum"?`<select data-calc-value="${def.parameterId}"><option value="">Select...</option>${def.options.map(option=>`<option ${option===prior.value?"selected":""}>${escapeHtml(option)}</option>`).join("")}</select>`:`<input data-calc-value="${def.parameterId}" inputmode="decimal" value="${escapeHtml(value)}">`;
-    return `<div class="calculation-input" data-calculation-input="${def.parameterId}"><h4>${escapeHtml(def.displayName)}${def.optional?" (optional)":""}</h4>
+    return `<div class="calculation-input" data-calculation-input="${def.parameterId}"><h4>${escapeHtml(def.displayName)}${def.optional?" (optional)":""} <span class="input-timing">${escapeHtml(def.timing||"FIELD_REQUIRED")}</span></h4>${bound?.conflict?`<div class="binding-conflict">${bound.requiresSelection?"Conflicting equal-priority sources — choose a source.":`Multiple values found; selected ${escapeHtml(prior.sourceDescription||"preferred source")} by evidence priority.`}</div>`:""}
       <label>Source<select data-calc-source="${def.parameterId}"><option value="">Manual entry</option>${candidates.map((item,index)=>`<option value="${index}" ${index===sourceIndex?"selected":""}>${escapeHtml(item.sourceDescription)}</option>`).join("")}</select></label>
       <div class="calculation-source"><label>Value${valueControl}</label>
       <label>Unit<input data-calc-unit="${def.parameterId}" value="${escapeHtml(prior.unit||def.unit)}" readonly></label>
@@ -1221,7 +1242,8 @@ function openCalculation(calculationId=null){
   if(!editingEcmId){alert("Save the ECM before adding a calculation.");return;}
   editingCalculationId=calculationId;
   const existing=calculationId?currentAudit.calculations.find(item=>item.calculationId===calculationId):null;
-  $("calculation-method").innerHTML=Object.values(CALC_ENGINE.METHOD_REGISTRY).map(method=>`<option value="${method.methodId}" ${method.methodId===existing?.methodId?"selected":""}>${method.methodId} — ${escapeHtml(method.title)}</option>`).join("");
+  const recipeMethod=!existing?WORKFLOW?.recipeMethods(currentAudit.ecms.find(item=>item.ecmId===editingEcmId))[0]:null;
+  $("calculation-method").innerHTML=Object.values(CALC_ENGINE.METHOD_REGISTRY).map(method=>`<option value="${method.methodId}" ${method.methodId===(existing?.methodId||recipeMethod)?"selected":""}>${method.methodId} — ${escapeHtml(method.title)}</option>`).join("");
   $("calculation-method").disabled=Boolean(existing);
   $("calculation-baseline").value=existing?.baselineDefinition||"";
   $("calculation-proposed").value=existing?.proposedDefinition||"";
@@ -1307,6 +1329,8 @@ function openEcm(ecmId=null){
   if(select.tagName==="SELECT"){
     select.innerHTML=availableEquipmentOptions(existing?.affectedEquipmentRecordIds||[]);
   }
+  $("ecmGroup").innerHTML=`<option value="">Individual equipment only</option>`+(currentAudit.equipmentGroups||[]).map(group=>`<option value="${group.groupId}">${escapeHtml(group.name)} (${group.equipmentRecordIds.length})</option>`).join("");
+  $("ecmGroup").value=existing?.equipmentGroupId||"";
 
   if(existing){
     $("ecmTitle").value=existing.title||"";
@@ -1328,6 +1352,7 @@ function openEcm(ecmId=null){
   }
   updateEcmTemplateInfo();
   renderEcmCalculations();
+  $("ecm-analysis-section").classList.toggle("hidden",activeMode==="field");
   $("ecm-dialog").showModal();
 }
 function selectedEcmEquipmentRecordIds(){
@@ -1353,16 +1378,20 @@ async function saveEcm(){
   if(!$("ecmTitle").value){ alert("ECM title is required."); return; }
   const recordIds=selectedEcmEquipmentRecordIds();
   const displayIds=getEquipmentByRecordIds(recordIds).map(eq=>eq.equipmentId);
+  const group=(currentAudit.equipmentGroups||[]).find(item=>item.groupId===$("ecmGroup").value);
+  const allRecordIds=[...new Set([...recordIds,...(group?.equipmentRecordIds||[])])];
   const editable={
     title:$("ecmTitle").value,
     category:$("ecmCategory").value,
-    affectedEquipmentRecordIds:recordIds,
-    affectedEquipmentIds:displayIds,
+    affectedEquipmentRecordIds:allRecordIds,
+    affectedEquipmentIds:getEquipmentByRecordIds(allRecordIds).map(eq=>eq.equipmentId),
+    equipmentGroupId:group?.groupId||null,
     existingCondition:$("ecmExisting").value,
     proposedImprovement:$("ecmProposed").value,
     missingData:$("ecmMissing").value,
     confidence:$("ecmConfidence").value,
-    templateKey:$("ecm-template").value||null
+    templateKey:$("ecm-template").value||null,
+    analysisRecipe:WORKFLOW?.RECIPES[$("ecm-template").value]?{methodIds:[...WORKFLOW.RECIPES[$("ecm-template").value]],createdFromTemplate:$("ecm-template").value,updatedAt:nowISO()}:null
   };
 
   let rollback;
@@ -1379,7 +1408,7 @@ async function saveEcm(){
       savings:{electricKwh:null,demandKw:null,therms:null,cost:null,method:null},
       implementationCost:null,simplePaybackYears:null,createdAt:nowISO()
     };
-    currentAudit.ecms.push(created);
+    WORKFLOW?.ensureRecipe(created);currentAudit.ecms.push(created);
     rollback=()=>{ currentAudit.ecms=currentAudit.ecms.filter(x=>x!==created); };
   }
   if(await saveCurrent()){
@@ -1398,12 +1427,22 @@ async function deleteEcm(id){
   else currentAudit.ecms=previous;
 }
 
+function setWorkflowMode(mode){activeMode=mode==="analysis"?"analysis":"field";document.querySelectorAll(".field-only").forEach(el=>el.classList.toggle("hidden",activeMode!=="field"));document.querySelectorAll(".analysis-only").forEach(el=>el.classList.toggle("hidden",activeMode!=="analysis"));$("field-mode-btn").classList.toggle("active",activeMode==="field");$("analysis-mode-btn").classList.toggle("active",activeMode==="analysis");$("field-mode-btn").classList.toggle("secondary",activeMode!=="field");$("analysis-mode-btn").classList.toggle("secondary",activeMode!=="analysis");if(currentAudit)render();}
+function readinessDetail(r){return [...r.missingFieldInputs.map(x=>`Field: ${x}`),...r.missingAnalysisInputs.map(x=>`Office: ${x}`)].join(" • ")||"Required inputs available";}
+function openRecipeCalculation(ecmId){editingEcmId=ecmId;const existing=(currentAudit.calculations||[]).find(c=>c.ecmId===ecmId);openCalculation(existing?.calculationId||null);}
+function renderAnalysisQueue(){if(!WORKFLOW)return;const queue=WORKFLOW.analysisQueue(currentAudit,CALC_ENGINE),labels={READY_TO_CALCULATE:"Ready to Calculate",NEEDS_OFFICE_INPUT:"Needs Office Input",MISSING_FIELD_DATA:"Missing Field Data",CALCULATED:"Calculated",NEEDS_RECALCULATION:"Needs Recalculation",METHOD_REQUIRES_VALIDATION:"Method Requires Validation",NO_RECIPE:"No Recipe"};$("analysis-queue").innerHTML=Object.entries(labels).map(([key,label])=>{const items=queue[key]||[];if(!items.length)return "";return `<section class="queue-group"><h3>${label} <span class="pill">${items.length}</span></h3>${items.map(({ecm,readiness})=>`<button class="queue-item" onclick="openRecipeCalculation('${ecm.ecmId}')"><strong>${ecm.ecmId} — ${escapeHtml(ecm.title)}</strong><small>${escapeHtml(readinessDetail(readiness))}</small></button>`).join("")}</section>`;}).join("")||`<p class="muted">Add an ECM template to prepare an analysis recipe.</p>`;}
+function renderFieldExitReview(){if(!WORKFLOW)return;const items=WORKFLOW.fieldExitReview(currentAudit,CALC_ENGINE),seen=new Set(items.map(item=>`${item.recordId}:${item.label}`));(currentAudit.ecms||[]).forEach(ecm=>{const template=evaluateTemplate(ecm.templateKey,ecm.affectedEquipmentRecordIds||[]);(template.required||[]).filter(item=>item.status!=="Complete").forEach(missing=>{const key=`${ecm.ecmId}:${missing.label}`;if(!seen.has(key)){seen.add(key);items.push({recordId:ecm.ecmId,title:`${ecm.ecmId} — ${ecm.title}`,label:missing.label});}});});(currentAudit.equipment||[]).forEach(eq=>{evaluatePhotoCompleteness(eq).required.filter(item=>item.status!=="Complete").forEach(missing=>{const key=`${eq.recordId}:${missing.label}`;if(!seen.has(key)){seen.add(key);items.push({recordId:eq.recordId,title:`${eq.equipmentId} — ${eq.name||eq.systemType}`,label:missing.label});}});});$("field-exit-count").textContent=`${items.length} item${items.length===1?"":"s"}`;$("field-exit-review").innerHTML=items.length?items.map(item=>`<div class="item field-exit-item"><strong>${escapeHtml(item.title)}</strong><small>⚠ ${escapeHtml(item.label)}</small></div>`).join(""):`<p class="badge-ok">✓ No required field evidence is currently missing.</p>`;}
+function openGroupDialog(){const options=availableEquipmentOptions([]);$("group-equipment").innerHTML=options;$("group-sampled").innerHTML=options;$("group-name").value="";$("group-population").value="";$("group-representative").checked=false;renderGroups();$("group-dialog").showModal();}
+function renderGroups(){$("group-list").innerHTML=(currentAudit.equipmentGroups||[]).map(group=>`<div class="item"><strong>${escapeHtml(group.name)}</strong><small>${group.equipmentRecordIds.length} included${group.sampling?.representativeConfirmed?` • representative sample ${group.sampling.sampleSize}/${group.sampling.populationSize}`:""}</small></div>`).join("")||`<p class="muted">No explicit groups.</p>`;}
+async function saveGroup(){const ids=[...$("group-equipment").selectedOptions].map(o=>o.value),sampled=[...$("group-sampled").selectedOptions].map(o=>o.value).filter(id=>ids.includes(id)),population=Number($("group-population").value||ids.length);if(!$("group-name").value.trim()||!ids.length){alert("Group name and included equipment are required.");return;}if($("group-representative").checked&&(!sampled.length||population<sampled.length)){alert("A representative sample requires sampled equipment and a population at least as large as the sample.");return;}const group={groupId:uid(),name:$("group-name").value.trim(),equipmentRecordIds:ids,sampling:$("group-representative").checked?{populationSize:population,sampleSize:sampled.length,sampledEquipmentRecordIds:sampled,representativeConfirmed:true,confirmedAt:nowISO(),provenance:"Estimated",evidenceLevel:"C"}:null,createdAt:nowISO()};currentAudit.equipmentGroups=Array.isArray(currentAudit.equipmentGroups)?currentAudit.equipmentGroups:[];currentAudit.equipmentGroups.push(group);if(await saveCurrent()){renderGroups();$("group-name").value="";}else currentAudit.equipmentGroups=currentAudit.equipmentGroups.filter(x=>x!==group);}
+
 function render(){
   if(!currentAudit) return;
   recalculateAllCompleteness();
   $("audit-title").textContent=currentAudit.site?.facilityName||"Untitled Audit";
   $("header-status").textContent=`${currentAudit.site?.facilityName||"Active audit"} • V${APP_VERSION}`;
   renderSystemInventory();
+  renderAnalysisQueue();renderFieldExitReview();
 
   const filtered=currentAudit.equipment.filter(x=>x.systemType===activeType);
   $("equipment-list").innerHTML=filtered.length?filtered.map(x=>{
@@ -1438,13 +1477,13 @@ function render(){
   $("add-equipment-btn").disabled=!activeType;
 
   $("ecm-list").innerHTML=currentAudit.ecms.length?currentAudit.ecms.map(x=>{
-    const hasCritical=(x.completenessItems||[]).some(item=>item.status==="Missing");
+    const readiness=WORKFLOW?.engineeringReadiness(currentAudit,x,CALC_ENGINE);const hasCritical=(x.completenessItems||[]).some(item=>item.status==="Missing");
     const hasRecommended=(x.completenessItems||[]).some(item=>item.status==="Recommended");
     const status=hasCritical?{label:"Missing Critical Data",className:"status-critical"}:hasRecommended?{label:"Recommended Data Missing",className:"status-recommended"}:{label:"Complete",className:"status-complete"};
     return `<div class="item"><div class="row"><div onclick="openEcm('${x.ecmId}')" class="equipment-card-main">
       <strong>${x.ecmId}: ${escapeHtml(x.title)}</strong>
       <small>${escapeHtml(x.category)} • ${escapeHtml(x.confidence)} confidence</small>
-      ${x.templateKey?`<div class="status-panel"><span class="status-badge ${status.className}">${status.label}</span></div>`:""}
+      ${x.templateKey?`<div class="status-panel"><span class="status-badge ${status.className}">Field Documentation: ${status.label}</span>${readiness?` <span class="status-badge status-progress">Calculation: ${escapeHtml(readiness.status.replaceAll("_"," "))}</span>`:""}</div>`:""}
     </div><button class="danger-link" onclick="deleteEcm('${x.ecmId}')">Delete</button></div></div>`;
   }).join(""):`<p class="muted">No ECMs added yet.</p>`;
   $("ecm-count").textContent=`${currentAudit.ecms.length} ECMs`;
@@ -1496,6 +1535,7 @@ async function exportAudit(){
   if(!await saveCurrent()) return;
   const safe=(currentAudit.site?.facilityName||"energy-audit").replace(/[^a-z0-9]+/gi,"_");
   const exportCopy=structuredClone(currentAudit);
+  exportCopy.engineeringAnalysis=WORKFLOW?.exportReadiness(currentAudit,CALC_ENGINE)||[];
   const integrity=collectIntegrityWarnings();
   exportCopy.exportIntegrity={
     generatedAt:nowISO(),
@@ -1531,7 +1571,7 @@ async function deleteCurrentAudit(){
   await showDashboard();
 }
 async function copyPrompt(){
-  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V4.1 JSON. Perform a data-quality review first. Respect provenance tags, evidence levels, calculation maturity, QA flags, method validation status, dependencies, engineering component boundaries, revision history, and stale-calculation status. Do not invent equipment specifications, measurements, schedules, utility rates, costs, or savings. Use only the recorded approved method IDs and their saved inputs/outputs. Identify missing information required for defensible calculations.`;
+  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V4.2 JSON. Perform a data-quality review first. Respect provenance tags, evidence levels, calculation maturity, QA flags, method validation status, dependencies, engineering component boundaries, revision history, stale-calculation status, and derived engineering readiness. Do not invent equipment specifications, measurements, schedules, utility rates, costs, or savings. Use only the recorded approved method IDs and their saved inputs/outputs. Identify missing field and office information required for defensible calculations.`;
   try{ await navigator.clipboard.writeText(prompt); alert("AI analysis prompt copied."); }catch{ alert(prompt); }
 }
 
@@ -1570,6 +1610,12 @@ $("close-utility").onclick=()=>$("utility-dialog").close();
 
 $("add-ecm-btn").onclick=()=>openEcm(null);
 $("ecm-template").addEventListener("change",updateEcmTemplateInfo);
+$("field-mode-btn").onclick=()=>setWorkflowMode("field");
+$("analysis-mode-btn").onclick=()=>setWorkflowMode("analysis");
+$("manage-groups-btn").onclick=openGroupDialog;
+$("close-group").onclick=()=>$("group-dialog").close();
+$("cancel-group").onclick=()=>$("group-dialog").close();
+$("save-group").onclick=saveGroup;
 $("ecmEquipment").addEventListener("change",updateEcmTemplateInfo);
 $("save-ecm").onclick=saveEcm;
 $("add-calculation-btn").onclick=()=>openCalculation(null);
@@ -1586,5 +1632,4 @@ $("delete-audit-btn").onclick=deleteCurrentAudit;
 $("copy-prompt-btn").onclick=copyPrompt;
 
 showDashboard();
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=4.1.0").catch(console.error); }
-
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=4.2.0").catch(console.error); }

@@ -27,9 +27,10 @@
   const round=value=>Number.isFinite(value)?Number(value.toPrecision(12)):value;
   const normalizeUnit=unit=>String(unit||"").trim().toLowerCase().replace(/\s+/g," ");
   const sameUnit=(actual,accepted)=>accepted.some(unit=>normalizeUnit(unit)===normalizeUnit(actual));
-  const input=(parameterId,displayName,unit,options={})=>({parameterId,displayName,unit,acceptedUnits:[unit],...options});
-  const enumInput=(parameterId,displayName,options,settings={})=>({parameterId,displayName,type:"enum",unit:"selection",acceptedUnits:["selection"],options,...settings});
-  const seriesInput=(parameterId,displayName,unit,fields,settings={})=>({parameterId,displayName,type:"series",unit,acceptedUnits:[unit],fields,...settings});
+  const inputTiming=parameterId=>/proposed|implementationCost|initialCost|discountRate|analysisPeriod|cashFlows|cashFlowConvention|electricRate|demandRate|touPeriods|demandPeriods|copBasis/i.test(parameterId)?"ANALYSIS_REQUIRED":"FIELD_REQUIRED";
+  const input=(parameterId,displayName,unit,options={})=>({parameterId,displayName,unit,acceptedUnits:[unit],timing:inputTiming(parameterId),...options});
+  const enumInput=(parameterId,displayName,options,settings={})=>({parameterId,displayName,type:"enum",unit:"selection",acceptedUnits:["selection"],options,timing:inputTiming(parameterId),...settings});
+  const seriesInput=(parameterId,displayName,unit,fields,settings={})=>({parameterId,displayName,type:"series",unit,acceptedUnits:[unit],fields,timing:inputTiming(parameterId),...settings});
   const output=(parameterId,displayName,unit,value)=>({parameterId,displayName,value:round(value),unit});
   const method=(methodId,title,definition)=>({
     methodId,title,version:VERSION,status:READY,implementationStatus:"IMPLEMENTED",recommendedInputs:[],
@@ -100,7 +101,7 @@
       method("CALC-FAN-002","Fan VFD / Affinity-Law Screening",{
         applicableSystemTypes:["Fans","AirHandling","PackagedHVAC"],applicability:"Applicable variable-torque fan systems with supported baseline power and speed/hour bins.",
         formula:"P2 = P1 × (N2/N1)^3; Annual Savings = Σ[(P1 - P2) × Hours_bin]",
-        inputs:[input("baselineFanKw","Representative Baseline Fan Power","kW"),{parameterId:"operatingBins",displayName:"Speed/Hour Bins",unit:"speed fraction, hr",acceptedUnits:["speed fraction, hr"],type:"bins"}],
+        inputs:[input("baselineFanKw","Representative Baseline Fan Power","kW"),{parameterId:"operatingBins",displayName:"Speed/Hour Bins",unit:"speed fraction, hr",acceptedUnits:["speed fraction, hr"],type:"bins",timing:"FIELD_REQUIRED"}],
         recommendedInputs:["staticPressureProfile","minimumVentilation","systemCurve"],outputs:["annualKwhSavings"],
         warnings:["Affinity-law screening cannot alone establish high-confidence maturity.","Review static pressure, minimum ventilation, control interactions, system resistance, and drive losses."],
         calculate(i){const b=val(i,"baselineFanKw");return [output("annualKwhSavings","Annual Fan Energy Savings","kWh/yr",get(i,"operatingBins").value.reduce((s,x)=>s+(b-b*Math.pow(numeric(x.speedFraction),3))*numeric(x.hours),0))];}
@@ -115,7 +116,7 @@
       method("CALC-PUMP-002","Pump VFD / Affinity-Law Screening",{
         applicableSystemTypes:["Pumps","ChilledWater","BoilersHeatingWater"],applicability:"Variable-torque pump screening with supported baseline input power and speed/hour bins.",
         formula:"Q2/Q1=N2/N1; H2/H1=(N2/N1)^2; P2/P1=(N2/N1)^3; Savings=Σ[(P1-P2)×Hours]",
-        inputs:[input("baselinePumpKw","Representative Baseline Pump Power","kW"),{parameterId:"operatingBins",displayName:"Speed/Hour Bins",unit:"speed fraction, hr",acceptedUnits:["speed fraction, hr"],type:"bins"},enumInput("significantStaticHead","Significant Static Head",["Yes","No","Unknown"])],
+        inputs:[input("baselinePumpKw","Representative Baseline Pump Power","kW"),{parameterId:"operatingBins",displayName:"Speed/Hour Bins",unit:"speed fraction, hr",acceptedUnits:["speed fraction, hr"],type:"bins",timing:"FIELD_REQUIRED"},enumInput("significantStaticHead","Significant Static Head",["Yes","No","Unknown"])],
         recommendedInputs:["actualSystemCurve","differentialPressureTrend"],outputs:["annualKwhSavings"],warnings:["Significant static head can invalidate ideal cube-law savings; use actual system and pump curves for higher confidence."],
         calculate(i){const b=val(i,"baselinePumpKw");return [output("annualKwhSavings","Annual Pump Energy Savings","kWh/yr",get(i,"operatingBins").value.reduce((s,x)=>s+(b-b*Math.pow(numeric(x.speedFraction),3))*numeric(x.hours),0))];}
       }),
@@ -374,4 +375,3 @@
 
   return {VERSION,READY,VALIDATE,METHOD_REGISTRY,CANONICAL_UNITS,PROVENANCE_OPTIONS,EVIDENCE_OPTIONS,run,assessReadiness,validateInputs,classifyEvidence,sourceFingerprint};
 });
-

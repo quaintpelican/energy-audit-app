@@ -1,6 +1,16 @@
-# Audist Data Schema — V4.1
+# Audist Data Schema — V4.2
 
-V4 retains audit schema `4` and IndexedDB database version `3`. The canonical audit continues to include `systems[]`, `equipment[]`, `ecms[]`, and `calculations[]`. No V3.3 field data is rewritten to enable calculations.
+V4.2 retains audit schema `4` and IndexedDB database version `3`. The canonical audit continues to include `systems[]`, `equipment[]`, `ecms[]`, and `calculations[]`, with optional additive `equipmentGroups[]`. Existing schema-4 audit data is not rewritten on open.
+
+## Workflow additions
+
+- `equipmentGroups[]`: `groupId`, name, stable `equipmentRecordIds[]`, optional explicit `sampling` (`populationSize`, `sampleSize`, sampled UUIDs, confirmation timestamp, Estimated provenance, evidence level C), and creation timestamp.
+- ECM optional `analysisRecipe`: recipe version and approved `methodIds[]`; recipes never contain fabricated input values.
+- ECM optional `equipmentGroupId`: stable group relationship. The ECM retains its individual stable equipment UUIDs as well.
+- Calculation input definitions expose `timing`: `FIELD_REQUIRED`, `ANALYSIS_REQUIRED`, or `RECOMMENDED`.
+- Export adds derived `engineeringAnalysis[]` readiness. This is recomputed from current audit evidence and does not replace canonical audit records.
+
+Auto-binding candidates retain provenance, evidence level, source kind, source UUID/field/version, and description. Calculations still save exact immutable input snapshots; source records themselves are not mutated or consumed.
 
 ## Canonical calculation object
 
@@ -24,4 +34,3 @@ An ECM may contain `calculationIds[]`. Editing an ECM preserves this and all unr
 ## Compatibility
 
 V3.3 audits lacking `calculations[]` normalize to an empty array. This is additive and does not invent evidence or calculations. Existing migration backups, photo Blobs, and unresolved legacy ECM equipment references remain unchanged.
-

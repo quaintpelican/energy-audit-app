@@ -1,5 +1,16 @@
 # Changelog
 
+## V4.2 Field/Analysis Workflow — release candidate
+
+- Added Field and Analysis modes over one canonical offline audit dataset.
+- Classified method inputs as field required, analysis required, or recommended without changing formulas.
+- Added deterministic source auto-binding with provenance priority, conflict visibility, explicit selection for equal-ranked conflicts, and reusable stable references.
+- Added ECM analysis recipes, an Analysis Queue, separate field-documentation/calculation readiness, and derived export readiness.
+- Added Before Leaving Site review for calculation field inputs, ECM field requirements, and equipment-specific required photos.
+- Added explicit equipment grouping and auditor-confirmed representative sampling with recorded population/sample membership and Estimated/Level C provenance.
+- Added pump VFD and boiler-efficiency ECM templates while preserving the V4.1 method registry and validation-only restrictions.
+- Retained audit schema 4, IndexedDB version 3, GitHub Pages/offline architecture, migration safeguards, and prior audit compatibility.
+
 ## V4.1 Full Engineering Library — release candidate
 
 - Implemented all 25 `READY-V1` methods from the California V1.1 engineering library with explicit units, provenance, evidence, warnings, and deterministic QA.
@@ -24,4 +35,3 @@
 - Retained audit schema 4 and IndexedDB version 3; no destructive migration is introduced.
 
 No backend, AI calculation, paid dependency, deemed-savings automation, framework migration, new equipment family, or unrelated engineering method was added.
-

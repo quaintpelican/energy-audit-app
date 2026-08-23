@@ -1,8 +1,14 @@
-# Audist — V4.1 Full Engineering Library
+# Audist — V4.2 Field/Analysis Workflow
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
-## V4.1 calculation release
+## V4.2 workflow refinement
+
+V4.2 separates fast onsite collection from office analysis without creating a second copy of audit data. Field Mode retains facility, systems, equipment, measurements, photos, ECM capture, and a Before Leaving Site review. Analysis Mode provides a deterministic ECM queue, method recipes, source auto-binding, proposed-condition entry, utility-rate entry, and readiness states. A value is collected once, referenced by stable UUID/source metadata, and snapshotted only when a calculation is saved.
+
+Inputs are classified as `FIELD_REQUIRED`, `ANALYSIS_REQUIRED`, or `RECOMMENDED`. Missing office-only values do not make field documentation incomplete. Conflicting equal-priority evidence requires an explicit selection; no hidden default or silent overwrite is used. Explicit equipment groups and auditor-confirmed representative samples retain membership, sample size, population size, and downgraded Estimated/Level C provenance.
+
+## V4.1 calculation baseline
 
 V4.1 implements all 25 `READY-V1` methods in the governing California V1.1 library. The registry covers general/electrical, lighting, HVAC schedule, fan and pump, water/chiller/air-side loads, boiler/DHW, refrigeration, compressed air, envelope, energy/TOU/demand cost, simple payback, and NPV. Eleven `VALIDATE-V2` entries are visible for field-readiness collection but always return `METHOD_REQUIRES_VALIDATION` and never generate savings.
 
@@ -12,7 +18,7 @@ No deemed/default value is silently supplied. An auditor may explicitly enter an
 
 ## Storage and migration
 
-V4 keeps audit schema version 4 and IndexedDB database version 3. Existing complete V3.3 audits open without structural migration or field-data rewriting; `calculations[]` is initialized only when absent. Existing audit, equipment, measurement, photo, ECM, migration-backup, and unresolved-reference safeguards remain in force. The DB-v3 rollback bridge remains compatible.
+V4.2 keeps audit schema version 4 and IndexedDB database version 3. `equipmentGroups[]` and ECM `analysisRecipe`/`equipmentGroupId` fields are additive and optional. Existing schema-4 audits open byte-equivalent and are not rewritten merely by opening them. Existing audit, equipment, measurement, photo, ECM, migration-backup, and unresolved-reference safeguards remain in force. The DB-v3 rollback bridge remains compatible.
 
 ## Offline behavior and export
 
@@ -20,7 +26,7 @@ V4 keeps audit schema version 4 and IndexedDB database version 3. Existing compl
 
 ## Test
 
-Run `npm test`. The suite includes deterministic and invalid-input coverage for all 25 methods, non-calculation checks for every `VALIDATE-V2` entry, and the prior IndexedDB, autosave, photo, migration, relationship, rollback, and offline reliability tests.
+Run `npm test`. The suite includes workflow timing, recipe, source-priority/conflict, source reuse, sampling, field/analysis readiness, queue, and export-readiness tests in addition to all V4.1 calculation and reliability coverage.
 
 ## iPhone release-candidate procedure
 
@@ -44,4 +50,3 @@ Run `npm test`. The suite includes deterministic and invalid-input coverage for 
 - Legacy embedded photos remain readable but JSON export does not package IndexedDB photo Blobs.
 
 Do not merge this feature branch to `main` until review and iPhone testing are complete.
-

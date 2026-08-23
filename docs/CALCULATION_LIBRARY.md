@@ -1,6 +1,8 @@
-# Calculation Library — V4.1
+# Calculation Library — V4.2
 
 The governing source is `ENGINEERING_CALCULATION_LIBRARY_CA.md` V1.1. `calculations.js` is the executable offline registry; it may implement only a method and status authorized by that library.
+
+V4.2 adds workflow metadata, not formulas. Every input is classified by collection timing. Deterministic auto-binding considers only associated equipment/group records, utility/ECM values, or approved upstream calculation outputs; preserves provenance and stable source references; surfaces conflicts; and requires explicit selection for equal-priority conflicting evidence. Proposed conditions remain explicit user inputs.
 
 ## Implemented `READY-V1` inventory (25)
 
@@ -29,4 +31,3 @@ Every material input requires unit, provenance, evidence level, and a source/ass
 ## Validation
 
 Run `npm test` in the application directory. The calculation suite exercises all 25 methods, known reference results, missing inputs, unit mismatch, provenance omission, domain constraints, immutable snapshots, overlap QA, dependency fingerprints, and the no-calculation contract for every validation-only entry.
-

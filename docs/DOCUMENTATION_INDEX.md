@@ -24,6 +24,8 @@ A requirement in the specification or roadmap is not necessarily implemented. Th
 
 Never place customer audit data, utility data, or facility photos in a public source-code repository.
 
+V4.2 retains `ENGINEERING_CALCULATION_LIBRARY_CA.md` as the governing calculation-method source. Workflow metadata may organize approved methods and inputs, but it may not alter formulas, invent evidence, or imply that validation-only methods calculate savings.
+
 
 
 ## V4.0 Phase 1 additions
