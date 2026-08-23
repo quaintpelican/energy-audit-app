@@ -5,6 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const {webcrypto} = require("node:crypto");
 const appSource=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
+const calculationSource=fs.readFileSync(path.join(__dirname,"..","calculations.js"),"utf8");
 const htmlSource=fs.readFileSync(path.join(__dirname,"..","index.html"),"utf8");
 
 function loadApp(){
@@ -18,6 +19,7 @@ function loadApp(){
   const document={
     hidden:false,
     getElementById(id){ if(!elements.has(id)) elements.set(id,makeElement()); return elements.get(id); },
+    querySelector(){ return makeElement(); },
     querySelectorAll(){ return []; },
     addEventListener(){},
     createElement(){ return makeElement(); }
@@ -33,6 +35,7 @@ function loadApp(){
   context.__elements=elements;
   context.__createdBlobs=createdBlobs;
   const source=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
+  vm.runInContext(calculationSource,context,{filename:"calculations.js"});
   vm.runInContext(source,context,{filename:"app.js"});
   return context;
 }
@@ -468,9 +471,56 @@ test("concise workflow status uses existing completeness without changing it",()
   assert.equal(result.status.label,"Missing Critical Data");
 });
 
-test("V3.3 reserves Engineering Analysis UI without implementing formulas",()=>{
-  assert.match(htmlSource,/Engineering Analysis — Future V4/);
-  assert.match(appSource,/function equipmentFieldTier/);
-  assert.doesNotMatch(appSource,/function calculateAnnualSavings/);
+test("V4 exposes approved engineering analysis without unrelated formula families",()=>{
+  assert.match(htmlSource,/Engineering Calculation/);
+  assert.match(appSource,/function runAndSaveCalculation/);
+  assert.doesNotMatch(calculationSource,/pump|boiler|chiller|heat pump/i);
+});
+
+test("equipment display-ID rename preserves calculation link and does not make its value source stale",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`(()=>{
+    const source={parameterId:"quantity",value:10,unit:"count",provenance:"Measured",evidenceLevel:"A",sourceKind:"equipment",sourceRecordId:"eq-1",equipmentRecordId:"eq-1",sourceField:"quantity"};
+    source.sourceFingerprint=AudistCalculations.sourceFingerprint(source);
+    currentAudit={auditId:"a",systems:[],utility:{},equipment:[{recordId:"eq-1",equipmentId:"LTG-01",quantity:10,fieldProvenance:{quantity:"Measured"},measurements:[],photos:[]}],ecms:[{ecmId:"ECM-01",affectedEquipmentRecordIds:["eq-1"]}],calculations:[{calculationId:"CALC-001",ecmId:"ECM-01",methodId:"CALC-LTG-001",status:"Calculated",inputs:[source],outputs:[],equipmentRecordIds:["eq-1"]}]};
+    currentAudit.equipment[0].equipmentId="LIGHTING-A";
+    const changed=refreshCalculationStaleness();
+    return {changed,status:currentAudit.calculations[0].status,link:currentAudit.calculations[0].equipmentRecordIds[0]};
+  })()`,context);
+  assert.equal(result.changed,false);
+  assert.equal(result.status,"Calculated");
+  assert.equal(result.link,"eq-1");
+});
+
+test("changing a linked source value marks a calculation as needing recalculation",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`(()=>{
+    const source={parameterId:"quantity",value:10,unit:"count",provenance:"Measured",evidenceLevel:"A",sourceKind:"equipment",sourceRecordId:"eq-1",equipmentRecordId:"eq-1",sourceField:"quantity"};
+    source.sourceFingerprint=AudistCalculations.sourceFingerprint(source);
+    currentAudit={auditId:"a",systems:[],utility:{},equipment:[{recordId:"eq-1",equipmentId:"LTG-01",quantity:12,fieldProvenance:{quantity:"Measured"},measurements:[],photos:[]}],ecms:[{ecmId:"ECM-01",affectedEquipmentRecordIds:["eq-1"]}],calculations:[{calculationId:"CALC-001",ecmId:"ECM-01",methodId:"CALC-LTG-001",status:"Calculated",inputs:[source],outputs:[],equipmentRecordIds:["eq-1"]}]};
+    refreshCalculationStaleness();
+    return currentAudit.calculations[0];
+  })()`,context);
+  assert.equal(result.status,"Needs Recalculation");
+  assert.ok(result.staleAt);
+});
+
+test("ECM editing preserves calculation IDs and export-compatible complete calculation data",async()=>{
+  const context=loadApp();
+  context.__elements.get("ecmTitle")?.value;
+  const result=await vm.runInContext(`(async()=>{
+    currentAudit={auditId:"a",site:{},systems:[],equipment:[],utility:{},ecms:[{ecmId:"ECM-01",title:"Old",category:"HVAC",affectedEquipmentRecordIds:[],calculationIds:["CALC-001"],unresolvedEquipmentReferences:[]}],calculations:[{calculationId:"CALC-001",ecmId:"ECM-01",methodId:"CALC-GEN-001",methodVersion:"1.0",status:"Calculated",maturity:"HIGH_CONFIDENCE_ESTIMATE",evidenceLevel:"A",inputs:[{parameterId:"baselineKw",value:10,unit:"kW",provenance:"Measured",evidenceLevel:"A"}],outputs:[{parameterId:"annualEnergyKwh",value:30000,unit:"kWh/yr"}],assumptions:[],warnings:[],qaFlags:[],equipmentRecordIds:[]}],metadata:{}};
+    editingEcmId="ECM-01";
+    document.getElementById("ecmTitle").value="Edited";
+    document.getElementById("ecmCategory").value="HVAC";
+    document.getElementById("ecmEquipment").tagName="SELECT";
+    document.getElementById("ecmEquipment").selectedOptions=[];
+    await saveEcm();
+    const exported=structuredClone(currentAudit);
+    return {ids:currentAudit.ecms[0].calculationIds,calculation:exported.calculations[0]};
+  })()`,context);
+  assert.deepEqual([...result.ids],["CALC-001"]);
+  assert.equal(result.calculation.inputs[0].provenance,"Measured");
+  assert.equal(result.calculation.outputs[0].value,30000);
 });
 

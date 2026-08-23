@@ -1,5 +1,5 @@
 {
-  "name": "audist-v3-3-field-ux-tests",
+  "name": "audist-v4-calculation-engine-tests",
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.js"

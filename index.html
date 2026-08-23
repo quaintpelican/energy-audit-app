@@ -13,7 +13,7 @@
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V3.3 • Offline-first</p>
+      <p id="header-status">V4.0 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -185,8 +185,8 @@
     </details>
 
     <details class="subsection disclosure future-analysis">
-      <summary>Engineering Analysis — Future V4</summary>
-      <p class="muted">Reserved for calculation status, method ID, evidence level, maturity, annual savings, financial results, assumptions, and warnings. No formulas are implemented in V3.3.</p>
+      <summary>Engineering Analysis — V4</summary>
+      <p class="muted">Approved calculation methods are added from the ECM editor. Results retain inputs, provenance, evidence level, maturity, assumptions, warnings, source links, and QA flags.</p>
     </details>
 
     <div class="actions sticky-actions">
@@ -247,9 +247,10 @@
     <label>Data Still Needed<textarea id="ecmMissing" rows="2"></textarea></label>
     <label>Confidence<select id="ecmConfidence"><option>High</option><option selected>Medium</option><option>Low</option></select></label>
     <div id="ecm-template-info" class="template-info hidden"></div>
-    <details class="disclosure future-analysis">
-      <summary>Engineering Analysis — Future V4</summary>
-      <p class="muted">Calculation status, method ID, evidence level, maturity, annual savings, financial results, assumptions, and warnings will appear here in V4. No calculations are performed in V3.3.</p>
+    <details class="disclosure" id="ecm-analysis-section">
+      <summary>Engineering Analysis <span id="ecm-calculation-count" class="pill">0 calculations</span></summary>
+      <div id="ecm-calculation-list" class="list compact"></div>
+      <button type="button" id="add-calculation-btn">+ Calculation</button>
     </details>
     <div class="actions">
       <button class="secondary" id="cancel-ecm">Cancel</button>
@@ -257,7 +258,20 @@
     </div>
   </dialog>
 
+  <dialog id="calculation-dialog">
+    <div class="dialog-head"><h3>Engineering Calculation</h3><button class="secondary icon" id="close-calculation">✕</button></div>
+    <label>Approved Method<select id="calculation-method"></select></label>
+    <div id="calculation-method-description" class="template-info"></div>
+    <div id="calculation-inputs"></div>
+    <div id="calculation-readiness" class="status-panel"></div>
+    <div class="actions sticky-actions">
+      <button class="secondary" id="cancel-calculation">Cancel</button>
+      <button id="run-calculation">Calculate &amp; Save</button>
+    </div>
+  </dialog>
+
   <script src="db.js"></script>
+  <script src="calculations.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -24,3 +24,8 @@ A requirement in the specification or roadmap is not necessarily implemented. Th
 
 Never place customer audit data, utility data, or facility photos in a public source-code repository.
 
+
+
+## V4.0 Phase 1 additions
+- [ENGINEERING_CALCULATION_LIBRARY_CA.md](ENGINEERING_CALCULATION_LIBRARY_CA.md) — authoritative California V1.1 engineering/evidence policy and validated method library.
+- Executable Phase 1 scope and implementation status are summarized in [CALCULATION_LIBRARY.md](CALCULATION_LIBRARY.md).

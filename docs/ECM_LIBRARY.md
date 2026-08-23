@@ -176,3 +176,21 @@ Calculation family: useful DHW load and standby/efficiency impacts.
 ## Development rule
 Do not add a completeness requirement merely because it is easy to collect. Every required field should answer: **Why is this necessary to determine applicability, calculate savings, estimate cost, or manage implementation risk?**
 
+
+
+---
+
+# ECM Library — V4.0 Calculation Associations
+
+V4 calculations attach to saved ECMs by `ecmId` and stable equipment UUIDs. The editor does not replace or erase calculation IDs or unrelated engineering/economic fields.
+
+Implemented associations are deliberately narrow:
+
+- Lighting retrofit ECMs may use `CALC-LTG-001`, followed by `CALC-UTIL-001` and `CALC-FIN-001` when their explicit inputs exist.
+- Lighting controls ECMs may use `CALC-LTG-002`.
+- HVAC schedule ECMs may use `CALC-HVAC-001`.
+- Fan/VFD ECMs may use `CALC-FAN-001` for measured baseline energy and `CALC-FAN-002` for documented bin-based screening.
+- `CALC-GEN-001`, `CALC-ELEC-001`, and `CALC-ELEC-002` provide approved general energy/power stages where applicability and evidence are documented.
+
+The UI permits only approved Phase 1 registry methods. Method selection does not fabricate inputs or imply ECM applicability; QA flags identify equipment sources outside the ECM relationship.
+

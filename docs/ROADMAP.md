@@ -131,3 +131,23 @@ AI must never silently fabricate engineering facts.
 ## Sequencing rule
 Do not expand feature breadth faster than the underlying schema, persistence, calculation provenance, and migration architecture can support.
 
+
+
+---
+
+# Audist Roadmap
+
+## Completed baselines
+
+- V3.1: field-data reliability, autosave, Blob photos, UUID ECM relationships, migration/rollback safeguards.
+- V3.2: structured facility system inventory and equipment-family collection.
+- V3.3: compact iPhone field workflow and progressive disclosure.
+
+## V4.0 Phase 1 — release candidate
+
+Deterministic offline calculation registry; ten approved methods; canonical reproducible records; provenance/evidence/maturity; explicit assumptions; source linking and stale detection; QA flags; compact ECM analysis UI; complete JSON calculation export; numerical/reliability tests.
+
+## Recommended V4.1 candidates — not yet approved for implementation
+
+In disciplined sequence after V4.0 field validation: pump power/energy, water-side load, chiller efficiency/energy, boiler and DHW efficiency, compressed-air measures, and envelope methods. Each needs an approved method definition, unit/evidence policy, deterministic cases, applicability warnings, and release review. No deemed/default automation is planned.
+
