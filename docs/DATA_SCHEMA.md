@@ -14,6 +14,10 @@ V6.0 keeps audit schema version 4 and IndexedDB version 3. It adds optional `qaD
 
 V6.1 retains audit schema 4 and IndexedDB version 3 and adds optional `aiReviews[]` and `aiReviewExports[]`. Review schema version 1 is independent. Each imported review preserves source audit ID/time/fingerprint, reviewer/model, summary, structured findings and dispositions, suggested ECM candidates and dispositions, calculation reviews, data-quality/report notes, timestamps, and status. These are advisory records. Accepted candidates create ordinary ECMs with `origin`, `sourceAiReviewId`, and `sourceCandidateId`; no AI object is merged into factual records. Existing audits require no migration or rewrite.
 
+## V6.2 report additions
+
+V6.2 retains audit schema 4 and IndexedDB version 3 and adds optional `reports[]`. Report schema version 1 is independent. Reports contain stable identity, source fingerprint/timestamps, QA/AI/portfolio references, structured sections/tables/figures, limitations, unresolved issues, source references, canonical numeric claims, timestamps, and lightweight revision history. Photo metadata may add `includeInReport`, `reportCaption`, `reportSection`, and `reportOrder`. Existing audits require no migration or rewrite.
+
 ## Workflow additions
 
 - `equipmentGroups[]`: `groupId`, name, stable `equipmentRecordIds[]`, optional explicit `sampling` (`populationSize`, `sampleSize`, sampled UUIDs, confirmation timestamp, Estimated provenance, evidence level C), and creation timestamp.

@@ -1,5 +1,13 @@
 # Changelog
 
+## V6.2 AI-Assisted ASHRAE Level 2 Report Engine — release candidate
+
+- Added local report request/instructions and strict structured response import.
+- Added readiness, numeric/source validation, selected figures, narrative-only editing, staleness, revisions, and independent report integrity.
+- Added configurable 14-section structure and responsive printable HTML for browser Print → Save as PDF.
+- Advanced the Professional Audit Package to format 8 with current report JSON/HTML and metadata.
+- Retained audit schema 4, IndexedDB version 3, offline operation, and prior persistence/migration protections.
+
 ## V6.1 AI-Assisted Engineering Review — release candidate
 
 - Added local `Export → external AI review → validated structured import`; Audist transmits nothing and has no AI API dependency.

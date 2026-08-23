@@ -1,4 +1,4 @@
-# Professional Audit Package — Format Version 5
+# Professional Audit Package — Format Version 8
 
 `audit.json` is the canonical structured dataset. CSV and image files are interoperable representations of the same audit evidence; they do not replace stable UUID relationships.
 
@@ -34,3 +34,5 @@ Format 5 retains all nine prior CSV tables. Weather bins, conditioned manufactur
 Format 6 retains those tables and adds `tables/qa_findings.csv`. Canonical `audit.json` includes the full generated `auditQa` snapshot and persisted `qaFindingStates[]`; `manifest.json` includes readiness, severity/category summaries, unresolved count, and current accepted limitations. `manifest.integrity` remains strictly about package/reference/photo integrity and does not become `FAIL` merely because engineering QA is unresolved.
 
 Format 7 adds `tables/ai_review_findings.csv` plus `ai_review/ai_review_request.json`, `ai_review/AI_REVIEW_INSTRUCTIONS.md`, and historical review JSON under `ai_review/reviews/`. The request excludes photo binaries and review recursion. Existing review records and engineer dispositions remain canonical in `audit.json`. AI review is optional, advisory, does not affect package integrity or deterministic readiness, and causes no network transmission during export.
+
+Format 8 adds the current audit-owned draft under `report/report.json` and `report/report.html`, plus report count, identity, currency, and independent report-integrity metadata in `manifest.json`. Stale reports remain explicitly marked. Report files are derived and do not replace canonical `audit.json`.

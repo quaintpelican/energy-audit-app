@@ -140,6 +140,10 @@ Use versions such as V3.1 and V4.0. Each release should identify changes, deploy
 
 The auditor must be able to export the complete audit and every referenced evidence photo locally, offline, in a predictable package usable without Audist. JSON remains canonical. A complete export must never be declared successful when any referenced photo is missing. Package creation is read-only and must not transmit or mutate customer data.
 
+## V6.2 Level 2 report principle
+
+**The report is a representation of the Audist engineering record. Report generation must not create new engineering facts.** Unsupported references or quantitative claims are rejected, source edits make reports stale, and narrative edits never change canonical engineering data. See `REPORT_ENGINE_SPEC.md`.
+
 ## Definition of success
 An experienced auditor can enter a facility with an iPhone, work offline, efficiently collect structured evidence, know before leaving whether critical information is missing, perform transparent calculations, and produce a defensible dataset that substantially reduces ASHRAE Level 2 reporting effort.
 

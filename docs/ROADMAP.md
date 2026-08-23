@@ -1,5 +1,12 @@
 # Audist Roadmap
 
+## V6.2 AI-assisted ASHRAE Level 2 report engine — release candidate
+
+- Local versioned report request and all-or-nothing structured import.
+- Readiness, numeric/source validation, selected figures, narrative-only editing, staleness, revision history, integrity, and printable HTML.
+- Professional package format 8 report JSON/HTML and metadata.
+- No API, backend, paid PDF service, DOCX, factual edits, calculations, or schema/database migration.
+
 ## V6.1 AI-assisted engineering review — release candidate
 
 - Versioned, local AI review request and standardized engineering-review instructions.

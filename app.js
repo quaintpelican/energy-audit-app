@@ -1,4 +1,4 @@
-const APP_VERSION = "6.1";
+const APP_VERSION = "6.2";
 const SCHEMA_VERSION = 4;
 const CALC_ENGINE = globalThis.AudistCalculations;
 const WORKFLOW = globalThis.AudistWorkflow;
@@ -9,6 +9,7 @@ const PORTFOLIO_ANALYSIS = globalThis.AudistPortfolioAnalysis;
 const ADVANCED_ANALYSIS = globalThis.AudistAdvancedAnalysis;
 const QA_ENGINE = globalThis.AudistQaRules;
 const AI_REVIEW = globalThis.AudistAiReview;
+const REPORT_ENGINE = globalThis.AudistReportEngine;
 
 let currentAudit = null;
 let activeMode="field";
@@ -1062,6 +1063,7 @@ async function deletePhoto(id){
     await renderDraftPhotos(); render();
   }else draftEquipment.photos=previous;
 }
+async function toggleReportPhoto(id,include){const photo=(draftEquipment?.photos||[]).find(p=>p.photoId===id);if(!photo)return;const prior=structuredClone(photo);photo.includeInReport=Boolean(include);if(photo.includeInReport){photo.reportCaption=prompt("Report caption (editable; underlying photo evidence is unchanged):",photo.reportCaption||photo.note||"")??(photo.reportCaption||photo.note||"");photo.reportSection=prompt("Report section ID:",photo.reportSection||"appendices")?.trim()||"appendices";photo.reportOrder=Number.isFinite(photo.reportOrder)?photo.reportOrder:0;}if(!await saveCurrent())Object.assign(photo,prior);await renderDraftPhotos();}
 async function renderDraftPhotos(){
   photoPreviewUrls.forEach(url=>URL.revokeObjectURL(url));
   photoPreviewUrls=[];
@@ -1075,12 +1077,19 @@ async function renderDraftPhotos(){
     html.push(`<div class="photo-card">
       ${src?`<img src="${src}" alt="${escapeHtml(p.name)}">`:`<div class="photo-missing">Image unavailable</div>`}
       <button onclick="deletePhoto('${p.photoId}')">✕</button>
-      <div class="photo-meta"><strong>${escapeHtml(p.category||"Field Photo")}</strong>${p.note?`<br>${escapeHtml(p.note)}`:""}${kb?`<br>${kb} KB`:""}</div>
+      <div class="photo-meta"><strong>${escapeHtml(p.category||"Field Photo")}</strong>${p.note?`<br>${escapeHtml(p.note)}`:""}${kb?`<br>${kb} KB`:""}<br><label><input type="checkbox" ${p.includeInReport?"checked":""} onchange="toggleReportPhoto('${p.photoId}',this.checked)"> Include in report</label></div>
     </div>`);
   }
   $("photo-list").innerHTML=html.join("");
   if(draftEquipment) renderEquipmentContext();
 }
+
+async function prepareLevel2Report(){if(!REPORT_ENGINE||!PACKAGE_EXPORT){alert("Report preparation is unavailable. Refresh once online and retry.");return;}await flushPendingSave();const gate=REPORT_ENGINE.readiness(currentAudit);if(gate.status==="NOT_READY"){alert(`Report preparation is blocked:\n\n${gate.blockers.map(x=>x.message).join("\n")}`);return;}if(gate.status==="READY_WITH_LIMITATIONS"&&!confirm(`Prepare a report draft with ${gate.limitations.length} visible limitation(s)? No engineering facts will be invented.`))return;const request=REPORT_ENGINE.buildRequest(currentAudit,{appVersion:APP_VERSION}),files=[{path:"report_request.json",blob:new Blob([JSON.stringify(request,null,2)],{type:"application/json"})},{path:"REPORT_DRAFT_INSTRUCTIONS.md",blob:new Blob([REPORT_ENGINE.INSTRUCTIONS],{type:"text/markdown"})}],blob=await PACKAGE_EXPORT.zip(files),safe=(currentAudit.site?.facilityName||"energy-audit").replace(/[^a-z0-9]+/gi,"_");downloadLocalFile(blob,`${safe}_Audist_Level2_Report_Draft.zip`);}
+async function copyReportInstructions(){try{await navigator.clipboard.writeText(REPORT_ENGINE.INSTRUCTIONS);alert("Report drafting instructions copied.");}catch{alert(REPORT_ENGINE.INSTRUCTIONS);}}
+async function importReportFile(file){if(!file)return;try{const text=await file.text(),checked=REPORT_ENGINE.validateResponse(text,currentAudit);if(!checked.valid)throw new Error(checked.errors.join("\n"));if(!confirm("Import this draft report? Narrative will remain separate from source engineering records."))return;const report=REPORT_ENGINE.importResponse(checked.value,currentAudit,{reportId:uid(),importedAt:nowISO()}),prior=structuredClone(currentAudit.reports||[]);currentAudit.reports=[...(currentAudit.reports||[]),report];if(await saveCurrent())render();else currentAudit.reports=prior;}catch(error){alert(`Report import rejected.\n\n${error.message||error}`);}finally{$ ("report-input").value="";}}
+function openLevel2Report(reportId){const report=(currentAudit.reports||[]).find(r=>r.reportId===reportId);if(!report)return;const html=REPORT_ENGINE.renderHtml(report,currentAudit),url=URL.createObjectURL(new Blob([html],{type:"text/html"}));window.open(url,"_blank","noopener");setTimeout(()=>URL.revokeObjectURL(url),60000);}
+function editLevel2Section(reportId,sectionId){const index=(currentAudit.reports||[]).findIndex(r=>r.reportId===reportId),report=currentAudit.reports?.[index],section=report?.sections?.find(s=>s.sectionId===sectionId);if(!section)return;const content=prompt(`Edit ${section.heading}. This changes report narrative only.`,section.content);if(content===null)return;const prior=report;currentAudit.reports[index]=REPORT_ENGINE.editSection(report,sectionId,content,nowISO());saveCurrent().then(ok=>{if(!ok)currentAudit.reports[index]=prior;render();});}
+function renderLevel2Reports(){if(!REPORT_ENGINE)return;const gate=REPORT_ENGINE.readiness(currentAudit),reports=currentAudit.reports||[],latest=reports.at(-1),integrity=latest?REPORT_ENGINE.integrity(latest,currentAudit):null;$("report-readiness-summary").innerHTML=`<div class="metric"><strong>${escapeHtml(currentAuditQa()?.readiness?.replaceAll("_"," ")||"UNAVAILABLE")}</strong><span>Engineering QA</span></div><div class="metric"><strong>${escapeHtml(gate.status.replaceAll("_"," "))}</strong><span>Report Readiness</span></div><div class="metric"><strong>${latest?escapeHtml(REPORT_ENGINE.isStale(latest,currentAudit)?"STALE":"CURRENT"):"NO DRAFT"}</strong><span>Draft Report</span></div><div class="metric"><strong>${escapeHtml(integrity?.status?.replaceAll("_"," ")||"NOT CHECKED")}</strong><span>Integrity</span></div>`;$("report-drafts").innerHTML=reports.slice().reverse().map(r=>{const check=REPORT_ENGINE.integrity(r,currentAudit),stale=REPORT_ENGINE.isStale(r,currentAudit);return `<details class="disclosure"><summary><span>${escapeHtml(r.reportTitle)}</span><span class="pill">${stale?"STALE":escapeHtml(check.status)}</span></summary>${stale?`<p class="badge-warn">REPORT STALE — underlying engineering data changed</p>`:""}<p>${r.sections.length} sections • ${r.figures.length} selected figures • ${r.limitations.length} limitations</p><div class="actions"><button class="secondary small" onclick="openLevel2Report('${r.reportId}')">Open / Print / Save PDF</button></div>${r.sections.map(s=>`<button class="secondary small" onclick="editLevel2Section('${r.reportId}','${s.sectionId}')">Edit ${escapeHtml(s.heading)}</button>`).join(" ")}</details>`;}).join("")||`<p class="muted">No structured report draft has been imported.</p>`;}
 
 function getEquipmentByRecordIds(recordIds=[]){
   return currentAudit.equipment.filter(eq=>recordIds.includes(eq.recordId));
@@ -1548,7 +1557,7 @@ function render(){
   $("audit-title").textContent=currentAudit.site?.facilityName||"Untitled Audit";
   $("header-status").textContent=`${currentAudit.site?.facilityName||"Active audit"} • V${APP_VERSION}`;
   renderSystemInventory();
-  renderAnalysisQueue();renderAuditQa();renderAiReviews();renderEndUseAnalysis();renderEndUseRollups();renderEndUseSources();renderPortfolios();renderFieldExitReview();
+  renderAnalysisQueue();renderAuditQa();renderAiReviews();renderLevel2Reports();renderEndUseAnalysis();renderEndUseRollups();renderEndUseSources();renderPortfolios();renderFieldExitReview();
 
   const filtered=currentAudit.equipment.filter(x=>x.systemType===activeType);
   $("equipment-list").innerHTML=filtered.length?filtered.map(x=>{
@@ -1684,7 +1693,7 @@ async function deleteCurrentAudit(){
   await showDashboard();
 }
 async function copyPrompt(){
-  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V6.1 audit package. Read manifest.json first, treat audit.json as canonical, and use CSV/photo files as interoperable evidence. Keep imported AI reviews advisory and separate from deterministic QA. Distinguish standalone ECM savings from adjusted portfolio savings. Respect confirmed interaction methods, sequence traces, excluded alternatives, utility/end-use boundaries, provenance, evidence, maturity, QA flags, stale status, and engineering readiness. Do not invent interaction factors, equipment specifications, measurements, schedules, utility rates, costs, savings, billing periods, end-use allocations, or weather effects.`;
+  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V6.2 audit package. Read manifest.json first, treat audit.json as canonical, and use CSV/photo/report files as interoperable evidence. Keep imported AI reviews and report narrative advisory and separate from deterministic QA. Distinguish standalone ECM savings from adjusted portfolio savings. Respect confirmed interaction methods, sequence traces, excluded alternatives, utility/end-use boundaries, provenance, evidence, maturity, QA flags, stale status, and engineering readiness. Do not invent interaction factors, equipment specifications, measurements, schedules, utility rates, costs, savings, billing periods, end-use allocations, or weather effects.`;
   try{ await navigator.clipboard.writeText(prompt); alert("AI analysis prompt copied."); }catch{ alert(prompt); }
 }
 
@@ -1734,6 +1743,10 @@ $("prepare-ai-review-btn").onclick=prepareAiReview;
 $("copy-ai-instructions-btn").onclick=copyAiInstructions;
 $("import-ai-review-btn").onclick=()=>$("ai-review-input").click();
 $("ai-review-input").onchange=e=>importAiReviewFile(e.target.files?.[0]);
+$("prepare-report-btn").onclick=prepareLevel2Report;
+$("copy-report-instructions-btn").onclick=copyReportInstructions;
+$("import-report-btn").onclick=()=>$("report-input").click();
+$("report-input").onchange=e=>importReportFile(e.target.files?.[0]);
 $("manage-groups-btn").onclick=openGroupDialog;
 $("close-group").onclick=()=>$("group-dialog").close();
 $("cancel-group").onclick=()=>$("group-dialog").close();
@@ -1764,4 +1777,4 @@ $("delete-audit-btn").onclick=deleteCurrentAudit;
 $("copy-prompt-btn").onclick=copyPrompt;
 
 showDashboard();
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=6.1.0").catch(console.error); }
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=6.2.0").catch(console.error); }

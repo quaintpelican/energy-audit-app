@@ -33,6 +33,7 @@ V4.2 retains `ENGINEERING_CALCULATION_LIBRARY_CA.md` as the governing calculatio
 - [ADVANCED_CALCULATIONS.md](ADVANCED_CALCULATIONS.md) — V5.3 implemented advanced methods, weather/performance evidence, readiness, refusal boundaries, RCx, and limitations.
 - [QA_QC_SPEC.md](QA_QC_SPEC.md) — V6.0 deterministic rules, finding lifecycle, readiness, field/analysis boundaries, export, and limitations.
 - [AI_ENGINEERING_REVIEW_SPEC.md](AI_ENGINEERING_REVIEW_SPEC.md) — V6.1 local request/validated import protocol, advisory lifecycle, privacy, ECM candidates, and future API boundary.
+- [REPORT_ENGINE_SPEC.md](REPORT_ENGINE_SPEC.md) — V6.2 readiness, structured request/import, numeric validation, traceability, staleness, figures, integrity, and printable HTML.
 
 
 

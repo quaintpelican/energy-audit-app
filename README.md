@@ -1,4 +1,4 @@
-# Audist — V6.1 AI-Assisted Engineering Review
+# Audist — V6.2 ASHRAE Level 2 Report Engine
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
@@ -6,11 +6,13 @@ V6.0 adds a local, deterministic whole-audit QA/QC engine without changing the V
 
 V6.1 adds an optional local review protocol after deterministic QA: prepare a versioned request and instructions, review them with an authorized external AI service, and import only a strictly validated JSON response. Audist makes no AI API call and never writes AI advice into factual evidence or deterministic calculations/QA.
 
+V6.2 adds a derived Level 2 report workflow: evaluate readiness, prepare a local structured drafting package, strictly validate the returned audit identity, record references, photos, and canonical numeric claims, then render responsive printable HTML. Report narrative edits never change source engineering records, and material source changes mark the report stale.
+
 Analysis Mode now groups findings by severity/category, exposes evidence and recommended action, supports explicit engineer review or accepted-limitations notes, and reports whole-audit readiness. Field Exit Review receives only onsite-relevant blocker/high findings.
 
 ## Portable audit package
 
-**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 5, including weather, manufacturer-performance, and RCx counts. A referenced photo that cannot be packaged is always `FAIL`.
+**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables, normal image files, and current report JSON/HTML are interoperable representations. `manifest.json` records package format version 8. A referenced photo that cannot be packaged is always `FAIL`.
 
 The export is read-only. Current IndexedDB photo Blobs are processed sequentially without base64 conversion; legacy embedded data URLs remain exportable. The package uses sanitized human-readable paths while stable UUIDs remain authoritative. iPhone Web Share is used when file sharing is supported, with a standard download fallback.
 
@@ -40,7 +42,7 @@ Analysis Mode shows modeled energy, utility baseline, unassigned residual, signe
 
 ## Storage and migration
 
-V6.1 keeps audit schema version 4 and IndexedDB database version 3. Optional AI reviews/exports are additive; existing audits require no migration or rewrite. Professional package format 7 adds the AI request, standardized instructions, imported review history, manifest summary, and `tables/ai_review_findings.csv` while keeping AI review optional and separate.
+V6.2 keeps audit schema version 4 and IndexedDB database version 3. Optional reports and report-photo metadata are additive; existing audits require no migration or rewrite. Professional package format 8 adds the current report JSON/HTML and report metadata while retaining the V6.1 AI review files.
 
 ## Offline behavior and export
 
@@ -52,7 +54,7 @@ Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-
 
 ## iPhone release-candidate procedure
 
-1. Open the V6.1 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
+1. Open the V6.2 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
 2. Create/open a test audit containing two systems, two equipment records, measurements, a utility month, an ECM, and a saved calculation.
 3. Capture an Overview and Nameplate photo, background the app immediately, relaunch, and confirm both photos remain visible.
 4. Turn on Airplane Mode, fully close the Home Screen app, relaunch, and choose **Export Audit Package**.
