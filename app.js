@@ -272,6 +272,7 @@ function migrateAudit(audit){
   migrated.calculations=migrated.calculations||[];
   migrated.equipment.forEach(eq=>{
     if(eq.systemType==="HVAC"){ eq.systemType="PackagedHVAC"; changed=true; }
+    if(!eq.systemType){ eq.systemType="Other"; changed=true; }
     if(!eq.recordId){ eq.recordId=uid(); changed=true; }
     if(!Array.isArray(eq.measurements)){ eq.measurements=[]; changed=true; }
     if(!Array.isArray(eq.photos)){ eq.photos=[]; changed=true; }
