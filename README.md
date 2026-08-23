@@ -1,9 +1,22 @@
-# Audist — V3.1
+# Audist — V3.2
 
 Offline-first iPhone energy-auditing PWA supporting structured ASHRAE Level 2 field data collection.
 
-## V3.1 focus
-Data safety, migration control, referential integrity, and dynamic completeness.
+## V3.2 focus
+System coverage and field schema breadth without engineering calculations.
+
+## Added in V3.2
+- Facility-level System Inventory / Audit Scope with 20 selectable system families.
+- Stable `systems[]` records linked to equipment by `systemRecordId` UUIDs.
+- Equipment workflows appear only for systems selected as present/in scope.
+- Equipment-specific field schemas for HVAC, air handling, chilled water, heating water, steam, pumps, fans, motors/drives, towers, BAS, lighting, DHW, refrigeration, compressed air, process, plug loads, envelope, solar PV, storage, and other systems.
+- Equipment subtype choices, next available display IDs, duplication, and per-field provenance.
+- Equipment-family measurement presets that populate parameter/unit only.
+- Equipment-family required versus recommended photo expectations.
+- Structured BAS schedules, setpoints, reset strategies, DCV, staging, and operational observations.
+- Audit schema 4 migration from V3.1 with a pre-migration backup; IndexedDB remains version 3.
+
+V3.2 intentionally adds no savings, affinity-law, lighting, financial, AI, backend, or cloud calculations/services.
 
 ## Reliability patch
 - Audit/photo additions and deletions commit atomically across IndexedDB stores.
@@ -40,7 +53,7 @@ Data safety, migration control, referential integrity, and dynamic completeness.
 - Service Worker only removes Audist/legacy Field Energy Audit caches.
 
 ## Migration
-Opening an older IndexedDB audit automatically adds missing V3 structures and stable ECM equipment relationships where they can be resolved. Migration does not invent engineering values.
+Opening a V3.1 audit creates a pre-migration backup, advances the audit object to schema 4, creates `systems[]` from existing equipment groupings, and links equipment to stable system UUIDs. Existing equipment, measurements, photos, ECM UUID relationships, and unresolved legacy references are retained. Migration adds structural data only and does not invent engineering values. IndexedDB remains at database version 3, so the existing rollback bridge remains compatible.
 
 Before replacing the primary audit, Audist validates the migrated structure and stores the complete original audit in the `migrationBackups` object store. Ambiguous or missing legacy equipment IDs remain in each ECM's `unresolvedEquipmentReferences` and continue to block potentially destructive equipment deletion.
 
@@ -66,8 +79,23 @@ Legacy V2.1/V3 photos embedded as `dataUrl` remain readable. New photos use the 
 Replace the repository root files with this release and commit to GitHub. Open the GitHub Pages URL in Safari once after deployment to allow the new Service Worker and IndexedDB schema to activate.
 
 ## Required test procedure
+1. Export a valuable V3.1 audit and open it in V3.2; verify equipment, measurements, photos, ECM links, warnings, and the pre-migration backup.
+2. Create a new audit and verify V3.2 is shown.
+3. Select Chilled Water, Pumps, BAS / Controls, Lighting, and Building Envelope; verify only those equipment tabs appear.
+4. Enter system schedules, controls summaries, and notes; background/reopen and confirm persistence.
+5. Add a chiller, pump, BAS record, lighting area, and envelope assembly; confirm only relevant fields appear and IDs are unique.
+6. Duplicate equipment; confirm a new ID is assigned and measurements/photos are not copied.
+7. Use measurement presets and confirm parameter/unit populate while value stays blank.
+8. Capture required/recommended photos and confirm completeness distinguishes them.
+9. Work in Airplane Mode, background the Home Screen app, relaunch, and confirm all records persist.
+10. Rename equipment linked to an ECM, verify the link survives, and confirm deletion protection.
+11. Export JSON and verify `systems[]`, equipment relationships, provenance, measurements, photos metadata, ECMs, and migration warnings.
+
+## V3.1 reliability baseline
+The V3.1 reliability behavior below remains part of V3.2.
+
 1. Open an existing V3 audit and confirm it loads.
-2. Create a new audit and verify V3.1 is shown.
+2. Create a new audit and verify V3.2 is shown.
 3. Add equipment, type fields, close the equipment dialog without pressing Done, reopen, and confirm data remains.
 4. Add a measurement, close/reopen, confirm persistence.
 5. Add a photo, close/reopen, confirm persistence.
