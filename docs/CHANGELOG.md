@@ -1,5 +1,34 @@
 # Audist — Changelog
 
+## V3.2 — System Coverage & Field Schema
+### Added
+- Facility-level System Inventory / Audit Scope with 20 selectable system families.
+- Stable `systems[]` records and UUID relationships from systems to equipment.
+- Scope-controlled equipment workflows; absent systems do not generate prompts.
+- Equipment-specific field schemas and subtype choices across major commercial and industrial energy systems.
+- Structured BAS/controls schedules, setpoints, reset strategies, DCV, staging, and operational observations.
+- Per-field equipment provenance.
+- Equipment duplication with unique next IDs; measurements and photos are intentionally not copied.
+- Equipment-family measurement presets that populate parameter/unit without values.
+- Equipment-family required versus recommended photo expectations.
+
+### Migration and storage
+- Audit schema advances from 3 to 4.
+- V3.1 audits receive a pre-migration backup before structural migration.
+- Existing equipment, measurements, photo metadata/Blobs, ECM UUID relationships, and unresolved legacy references are preserved.
+- IndexedDB remains database version 3; no new object stores or DB upgrade are required.
+- The V3.1 DB3 rollback bridge remains the rollback-compatible baseline.
+
+### Explicit exclusions
+No savings calculations, affinity-law tools, financial calculations, AI API, cloud sync, backend, paid dependency, or framework migration were added.
+
+### Verification
+- JavaScript syntax checks.
+- 35 automated tests, including V3.1 → V3.2 migration, system persistence/relationships, duplication, presets, photo rules, existing ECM integrity, IndexedDB persistence, photos, transactions, and rollback behavior.
+- Interactive iPhone-width browser validation of system selection and chiller workflow.
+- Manual physical-iPhone offline and camera testing remains required before production deployment.
+
+
 ## V3.1
 ### Added/fixed
 - Immediate persistence of new equipment and measurements.
