@@ -1586,5 +1586,5 @@ $("delete-audit-btn").onclick=deleteCurrentAudit;
 $("copy-prompt-btn").onclick=copyPrompt;
 
 showDashboard();
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(console.error); }
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=4.1.0").catch(console.error); }
 
