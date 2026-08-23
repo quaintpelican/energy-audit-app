@@ -1,4 +1,4 @@
-const CACHE="audist-v3-2-system-coverage-1";
+const CACHE="audist-v3-3-field-ux-1";
 const ASSETS=["./","./index.html","./styles.css","./db.js","./app.js","./manifest.webmanifest","./icon.svg","./audist-icon.png"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
