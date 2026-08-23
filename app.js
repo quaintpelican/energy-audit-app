@@ -1,4 +1,4 @@
-const APP_VERSION = "3.2";
+const APP_VERSION = "3.3";
 const SCHEMA_VERSION = 4;
 
 let currentAudit = null;
@@ -68,6 +68,23 @@ const schemas = {
   EnergyStorage:[...COMMON_EQUIPMENT_FIELDS,["storageType","Storage Type","Battery / thermal"],["energyCapacity","Energy Capacity","kWh or ton-hr"],["powerCapacity","Power Capacity","kW"],["controlStrategy","Control Strategy",""],["schedule","Operating Schedule",""]],
   Other:[...COMMON_EQUIPMENT_FIELDS,["service","Service / Description",""],["ratedPower","Rated Power / Capacity",""],["schedule","Operating Schedule",""],["controls","Controls",""]]
 };
+
+const CORE_FIELD_KEYS = new Set([
+  "equipmentId","equipmentSubtype","manufacturer","model","capacity","nominalTons","inputCapacity","outputCapacity",
+  "ratedHp","ratedCfm","ratedPower","designFlow","designHead","motorHp","fanHp","designAirflow","airflow","quantity",
+  "existingWatts","fuel","assemblyType","area","dcCapacity","energyCapacity","powerCapacity","service","process","spaceOrProcess"
+]);
+const CONTROL_FIELD_KEYS = new Set([
+  "controls","controlMethod","compressorControls","controlStrategy","schedule","hoursAnnual","networkProtocol","pointsSummary",
+  "temperatureSetpoints","setupSetback","optimumStartStop","economizerStrategy","satReset","staticPressureReset","chwReset","hhwReset",
+  "pumpDpReset","dcv","simultaneousHeatingCooling","equipmentStaging"
+]);
+function equipmentFieldTier(key){
+  if(CORE_FIELD_KEYS.has(key)) return "core";
+  if(CONTROL_FIELD_KEYS.has(key)||/control|schedule|reset|setpoint|staging/i.test(key)) return "controls";
+  if(["serial","iplv","turndown","approachRange","orientation","commissionedYear","loadProfile","lightLevel"].includes(key)) return "advanced";
+  return "recommended";
+}
 
 const PHOTO_REQUIREMENTS = {
   PackagedHVAC: {required:["Equipment Overview","Nameplate"], recommended:["Controls"]},
@@ -265,7 +282,7 @@ function migrateAudit(audit){
   }
 
   migrated.metadata=migrated.metadata||{};
-  migrated.metadata.appVersion=APP_VERSION;
+  if(oldVersion<SCHEMA_VERSION) migrated.metadata.appVersion=APP_VERSION;
   migrated.systems=Array.isArray(migrated.systems)?migrated.systems:[];
   migrated.equipment=migrated.equipment||[];
   migrated.ecms=migrated.ecms||[];
@@ -581,16 +598,24 @@ function nextSystemId(type){
 function renderSystemInventory(){
   currentAudit.systems=Array.isArray(currentAudit.systems)?currentAudit.systems:[];
   const selected=new Set((currentAudit.systems||[]).map(s=>s.systemType));
+  $("selected-system-summary").innerHTML=currentAudit.systems.length
+    ? currentAudit.systems.map(system=>`<button class="system-chip" data-system-jump="${system.systemType}">${escapeHtml(SYSTEM_LABELS[system.systemType]||system.name)} (${currentAudit.equipment.filter(eq=>eq.systemType===system.systemType).length})</button>`).join("")
+    : `<span class="muted">No systems selected. Edit Audit Scope to begin.</span>`;
+  document.querySelectorAll("[data-system-jump]").forEach(button=>button.addEventListener("click",()=>{
+    activeType=button.dataset.systemJump;
+    $("equipment-tabs").scrollIntoView({behavior:"smooth",block:"center"});
+    render();
+  }));
   $("system-scope").innerHTML=SYSTEM_TYPES.map(([key,label])=>`<label class="scope-option"><input type="checkbox" data-system-scope="${key}" ${selected.has(key)?"checked":""}>${label}</label>`).join("");
   document.querySelectorAll("[data-system-scope]").forEach(el=>el.addEventListener("change",systemScopeChanged));
-  $("system-detail-list").innerHTML=(currentAudit.systems||[]).map(system=>`<div class="item"><strong>${escapeHtml(system.systemId)} — ${escapeHtml(system.name||SYSTEM_LABELS[system.systemType])}</strong>
+  $("system-detail-list").innerHTML=(currentAudit.systems||[]).map(system=>`<details class="disclosure"><summary>${escapeHtml(system.systemId)} — ${escapeHtml(system.name||SYSTEM_LABELS[system.systemType])}<span class="pill">${currentAudit.equipment.filter(eq=>eq.systemRecordId===system.systemRecordId).length} equipment</span></summary>
     <div class="system-fields">
       <label>Name<input data-system-record="${system.systemRecordId}" data-system-field="name" value="${escapeHtml(system.name||"")}"></label>
       <label>Status<select data-system-record="${system.systemRecordId}" data-system-field="status"><option ${system.status==="Present"?"selected":""}>Present</option><option ${system.status==="Not Audited"?"selected":""}>Not Audited</option><option ${system.status==="Out of Service"?"selected":""}>Out of Service</option></select></label>
       <label>Operating Schedule<input data-system-record="${system.systemRecordId}" data-system-field="operatingSchedule" value="${escapeHtml(system.operatingSchedule||"")}"></label>
       <label>Controls Summary<input data-system-record="${system.systemRecordId}" data-system-field="controlsSummary" value="${escapeHtml(system.controlsSummary||"")}"></label>
       <label>Notes<input data-system-record="${system.systemRecordId}" data-system-field="notes" value="${escapeHtml(system.notes||"")}"></label>
-    </div></div>`).join("");
+    </div></details>`).join("");
   document.querySelectorAll("[data-system-field]").forEach(el=>el.addEventListener("input",systemFieldChanged));
   $("system-count").textContent=`${currentAudit.systems.length} present`;
   renderEquipmentTabs();
@@ -623,7 +648,7 @@ function systemFieldChanged(e){
 function renderEquipmentTabs(){
   const systems=currentAudit.systems||[];
   if(!systems.some(s=>s.systemType===activeType)) activeType=systems[0]?.systemType||"";
-  $("equipment-tabs").innerHTML=systems.map(system=>`<button class="tab ${system.systemType===activeType?"active":""}" data-type="${system.systemType}">${escapeHtml(SYSTEM_LABELS[system.systemType]||system.name)}</button>`).join("");
+  $("equipment-tabs").innerHTML=systems.map(system=>`<button class="tab ${system.systemType===activeType?"active":""}" data-type="${system.systemType}">${escapeHtml(SYSTEM_LABELS[system.systemType]||system.name)}<span class="tab-count">${currentAudit.equipment.filter(eq=>eq.systemType===system.systemType).length}</span></button>`).join("");
   document.querySelectorAll("#equipment-tabs .tab").forEach(button=>button.addEventListener("click",()=>{ activeType=button.dataset.type; render(); }));
 }
 
@@ -634,10 +659,52 @@ function nextEquipmentId(type){
   return `${prefix}-${String(n).padStart(2,"0")}`;
 }
 
+function equipmentKeySize(eq){
+  const candidates=[
+    ["nominalTons","tons"],["capacity",""] ,["inputCapacity",""] ,["ratedHp","HP"],["motorHp","HP"],
+    ["fanHp","HP"],["ratedPower",""] ,["designFlow","gpm"],["designAirflow","cfm"],["airflow","cfm"],
+    ["existingWatts","W/fixture"],["dcCapacity","kWdc"],["energyCapacity","kWh"],["area","ft²"]
+  ];
+  const found=candidates.find(([key])=>String(eq?.[key]??"").trim());
+  return found?`${eq[found[0]]}${found[1]?` ${found[1]}`:""}`:"";
+}
+function linkedEcmsForEquipment(recordId){
+  return (currentAudit?.ecms||[]).filter(ecm=>(ecm.affectedEquipmentRecordIds||[]).includes(recordId));
+}
+function equipmentWorkflowStatus(eq){
+  if(eq.status==="in_progress") return {label:"In Progress",className:"status-progress"};
+  const linked=linkedEcmsForEquipment(eq.recordId);
+  const missingCritical=linked.some(ecm=>(ecm.completenessItems||[]).some(item=>item.status==="Missing"));
+  const photos=evaluatePhotoCompleteness(eq);
+  if(missingCritical||photos.required.some(item=>item.status==="Missing")) return {label:"Missing Critical Data",className:"status-critical"};
+  const recommendedMissing=linked.some(ecm=>(ecm.completenessItems||[]).some(item=>item.status==="Recommended"))||photos.recommended.some(item=>item.status==="Recommended");
+  if(recommendedMissing) return {label:"Recommended Data Missing",className:"status-recommended"};
+  return {label:"Complete",className:"status-complete"};
+}
+function renderEquipmentContext(){
+  if(!draftEquipment) return;
+  const status=equipmentWorkflowStatus(draftEquipment);
+  const photoStatus=evaluatePhotoCompleteness(draftEquipment);
+  const linked=linkedEcmsForEquipment(draftEquipment.recordId);
+  const missing=[...photoStatus.required.filter(item=>item.status==="Missing").map(item=>`Required photo: ${item.label}`),
+    ...linked.flatMap(ecm=>(ecm.completenessItems||[]).filter(item=>item.status==="Missing").map(item=>`${ecm.ecmId}: ${item.label}`))];
+  $("equipment-status-detail").innerHTML=`<span class="status-badge ${status.className}">${status.label}</span>${missing.length?`<details class="disclosure"><summary>View missing critical requirements (${missing.length})</summary><ul>${missing.map(item=>`<li>${escapeHtml(item)}</li>`).join("")}</ul></details>`:""}`;
+  $("equipment-ecm-summary").textContent=`Potential ECMs (${linked.length})`;
+  $("equipment-ecm-list").innerHTML=linked.length?linked.map(ecm=>`<button class="secondary" onclick="openEcm('${ecm.ecmId}')">${escapeHtml(ecm.ecmId)} — ${escapeHtml(ecm.title)}</button>`).join(""):`<p class="muted">No ECMs are linked to this equipment.</p>`;
+  const totalRequired=photoStatus.required.length;
+  const completeRequired=photoStatus.required.filter(item=>item.status==="Complete").length;
+  $("equipment-photo-summary").textContent=totalRequired?`Photos ${completeRequired}/${totalRequired}`:`Photos ${(draftEquipment.photos||[]).length}`;
+}
+
 function renderEquipmentFields(type, values={}){
-  $("equipment-fields").innerHTML=(schemas[type]||schemas.Other).map(([id,label,ph])=>id==="equipmentSubtype"
+  const groups={core:[],recommended:[],controls:[],advanced:[]};
+  (schemas[type]||schemas.Other).forEach(field=>groups[equipmentFieldTier(field[0])].push(field));
+  const fieldHtml=([id,label,ph])=>id==="equipmentSubtype"
     ? `<label>${label}<select data-equipment-field="${id}" id="f_${id}"><option value="">Select...</option>${(EQUIPMENT_SUBTYPES[type]||["Other equipment"]).map(option=>`<option ${values[id]===option?"selected":""}>${escapeHtml(option)}</option>`).join("")}</select></label>`
-    : `<label>${label}<input data-equipment-field="${id}" id="f_${id}" placeholder="${ph}" value="${escapeHtml(values[id]||"")}">${id==="equipmentId"?"":`<select data-equipment-provenance="${id}" aria-label="${escapeHtml(label)} provenance"><option value="">Provenance...</option>${["Measured","Nameplate","Estimated","Assumed","Calculated"].map(p=>`<option ${values.fieldProvenance?.[id]===p?"selected":""}>${p}</option>`).join("")}</select>`}</label>`).join("");
+    : `<label>${label}<input data-equipment-field="${id}" id="f_${id}" placeholder="${ph}" value="${escapeHtml(values[id]||"")}">${id==="equipmentId"?"":`<select data-equipment-provenance="${id}" aria-label="${escapeHtml(label)} provenance"><option value="">Provenance...</option>${["Measured","Nameplate","Estimated","Assumed","Calculated"].map(p=>`<option ${values.fieldProvenance?.[id]===p?"selected":""}>${p}</option>`).join("")}</select>`}</label>`;
+  const expandable=(title,key)=>groups[key].length?`<details class="disclosure"><summary>${title}<span class="pill">${groups[key].length} fields</span></summary><div class="field-grid">${groups[key].map(fieldHtml).join("")}</div></details>`:"";
+  $("equipment-fields").innerHTML=`<section class="field-section"><h4>Identity &amp; Key Nameplate / Design Data</h4><div class="field-grid">${groups.core.map(fieldHtml).join("")}</div></section>
+    ${expandable("Recommended Data","recommended")}${expandable("Operating Conditions / Controls & Sequence","controls")}${expandable("Advanced Details","advanced")}`;
   document.querySelectorAll("[data-equipment-field]").forEach(el=>el.addEventListener("input",equipmentFieldChanged));
   document.querySelectorAll("[data-equipment-provenance]").forEach(el=>el.addEventListener("change",equipmentProvenanceChanged));
 }
@@ -669,6 +736,7 @@ async function openNewEquipment(){
   $("equipmentFlags").value="";
   renderDraftMeasurements();
   await renderDraftPhotos();
+  renderEquipmentContext();
   $("equipment-dialog").showModal();
 }
 
@@ -697,6 +765,7 @@ async function duplicateEquipment(){
   $("equipmentFlags").value=(copy.potentialEcmFlags||[]).join(", ");
   renderDraftMeasurements();
   await renderDraftPhotos();
+  renderEquipmentContext();
 }
 async function editEquipment(id){
   const existing=currentAudit.equipment.find(x=>x.recordId===id);
@@ -709,6 +778,7 @@ async function editEquipment(id){
   $("equipmentFlags").value=(existing.potentialEcmFlags||[]).join(", ");
   renderDraftMeasurements();
   await renderDraftPhotos();
+  renderEquipmentContext();
   $("equipment-dialog").showModal();
 }
 function equipmentFieldChanged(e){
@@ -783,7 +853,7 @@ function openMeasurement(){
   ["mParameter","mValue","mUnit","mMethod","mNotes"].forEach(id=>$(id).value="");
   $("mSource").value="Measured";
   const presets=MEASUREMENT_PRESETS[draftEquipment?.systemType]||[];
-  $("measurement-preset").innerHTML=`<option value="">Custom parameter...</option>${presets.map(([parameter,unit],i)=>`<option value="${i}">${escapeHtml(parameter)} (${escapeHtml(unit)})</option>`).join("")}`;
+  $("measurement-preset").innerHTML=`<option value="">Custom Measurement...</option>${presets.map(([parameter,unit],i)=>`<option value="${i}">${escapeHtml(parameter)} (${escapeHtml(unit)})</option>`).join("")}`;
   $("measurement-dialog").showModal();
 }
 function measurementPresetChanged(){
@@ -791,6 +861,8 @@ function measurementPresetChanged(){
   if(!preset) return;
   $("mParameter").value=preset[0];
   $("mUnit").value=preset[1];
+  $("mSource").value="Measured";
+  $("mValue").focus?.();
 }
 async function saveMeasurement(){
   if(!$("mParameter").value){ alert("Parameter is required."); return; }
@@ -820,6 +892,7 @@ function renderDraftMeasurements(){
   $("measurement-list").innerHTML=(draftEquipment?.measurements||[]).length ? draftEquipment.measurements.map(m=>`
     <div class="item"><div class="row"><div><strong>${escapeHtml(m.parameter)}</strong><small>${escapeHtml(m.value)} ${escapeHtml(m.unit)} • ${escapeHtml(m.source)}</small></div>
     <button class="secondary small" onclick="deleteMeasurement('${m.measurementId}')">Delete</button></div></div>`).join("") : `<p class="muted">No measurements yet.</p>`;
+  if(draftEquipment) renderEquipmentContext();
 }
 
 async function compressImage(file,maxDimension=1600,quality=0.78){
@@ -900,6 +973,7 @@ async function renderDraftPhotos(){
     </div>`);
   }
   $("photo-list").innerHTML=html.join("");
+  if(draftEquipment) renderEquipmentContext();
 }
 
 function getEquipmentByRecordIds(recordIds=[]){
@@ -1069,14 +1143,20 @@ function render(){
   const filtered=currentAudit.equipment.filter(x=>x.systemType===activeType);
   $("equipment-list").innerHTML=filtered.length?filtered.map(x=>{
     const pc=evaluatePhotoCompleteness(x);
+    const status=equipmentWorkflowStatus(x);
+    const linkedCount=linkedEcmsForEquipment(x.recordId).length;
+    const keySize=equipmentKeySize(x);
+    const requiredComplete=pc.required.filter(item=>item.status==="Complete").length;
+    const photoLabel=pc.required.length?`${requiredComplete}/${pc.required.length}`:`${(x.photos||[]).length}`;
     return `<div class="item">
       <div class="row">
-        <div onclick="editEquipment('${x.recordId}')" style="flex:1;cursor:pointer">
-          <strong>${escapeHtml(x.equipmentId||"(ID missing)")}</strong>
-          <small>${escapeHtml(x.equipmentSubtype||x.systemType)} • ${(x.measurements||[]).length} measurements • ${(x.photos||[]).length} photos • ${x.status==="in_progress"?"In progress":"Saved"}</small>
-          <div class="completeness"><span>Photos ${pc.percent}%</span><div class="bar"><span style="width:${pc.percent}%"></span></div></div>
+        <div class="equipment-card-main" onclick="editEquipment('${x.recordId}')">
+          <strong>${escapeHtml(x.equipmentId||"(ID missing)")} — ${escapeHtml(x.equipmentSubtype||SYSTEM_LABELS[x.systemType]||x.systemType)}</strong>
+          ${keySize?`<small>${escapeHtml(keySize)}</small>`:""}
+          <div class="equipment-card-meta"><span>${(x.measurements||[]).length} measurements</span><span>Photos ${photoLabel}</span><span>${linkedCount} ECM${linkedCount===1?"":"s"}</span></div>
+          <div class="status-panel"><span class="status-badge ${status.className}">${status.label}</span></div>
         </div>
-        <button class="secondary small" onclick="deleteEquipment('${x.recordId}')">Delete</button>
+        <button class="danger-link" aria-label="Delete ${escapeHtml(x.equipmentId||"equipment")}" onclick="deleteEquipment('${x.recordId}')">Delete</button>
       </div>
     </div>`;
   }).join(""):`<p class="muted">${activeType?`No ${escapeHtml(SYSTEM_LABELS[activeType]||activeType)} equipment added yet.`:"Select a system in Audit Scope to begin equipment inventory."}</p>`;
@@ -1092,12 +1172,16 @@ function render(){
   $("add-equipment-btn").textContent=activeType?`+ Add ${SYSTEM_LABELS[activeType]||activeType} Equipment`:`+ Select Audit Scope First`;
   $("add-equipment-btn").disabled=!activeType;
 
-  $("ecm-list").innerHTML=currentAudit.ecms.length?currentAudit.ecms.map(x=>`
-    <div class="item"><div class="row"><div onclick="openEcm('${x.ecmId}')" style="flex:1;cursor:pointer">
+  $("ecm-list").innerHTML=currentAudit.ecms.length?currentAudit.ecms.map(x=>{
+    const hasCritical=(x.completenessItems||[]).some(item=>item.status==="Missing");
+    const hasRecommended=(x.completenessItems||[]).some(item=>item.status==="Recommended");
+    const status=hasCritical?{label:"Missing Critical Data",className:"status-critical"}:hasRecommended?{label:"Recommended Data Missing",className:"status-recommended"}:{label:"Complete",className:"status-complete"};
+    return `<div class="item"><div class="row"><div onclick="openEcm('${x.ecmId}')" class="equipment-card-main">
       <strong>${x.ecmId}: ${escapeHtml(x.title)}</strong>
       <small>${escapeHtml(x.category)} • ${escapeHtml(x.confidence)} confidence</small>
-      ${x.templateKey?`<div class="completeness"><span>${x.completenessPercent||0}% required complete</span><div class="bar"><span style="width:${x.completenessPercent||0}%"></span></div></div>`:""}
-    </div><button class="secondary small" onclick="deleteEcm('${x.ecmId}')">Delete</button></div></div>`).join(""):`<p class="muted">No ECMs added yet.</p>`;
+      ${x.templateKey?`<div class="status-panel"><span class="status-badge ${status.className}">${status.label}</span></div>`:""}
+    </div><button class="danger-link" onclick="deleteEcm('${x.ecmId}')">Delete</button></div></div>`;
+  }).join(""):`<p class="muted">No ECMs added yet.</p>`;
   $("ecm-count").textContent=`${currentAudit.ecms.length} ECMs`;
 
   const measurements=currentAudit.equipment.reduce((n,x)=>n+(x.measurements?.length||0),0);
@@ -1172,7 +1256,7 @@ async function deleteCurrentAudit(){
   await showDashboard();
 }
 async function copyPrompt(){
-  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V3.2 JSON. Perform a data-quality review first. Respect provenance tags and do not invent equipment specifications, measurements, schedules, utility rates, costs, or savings. Identify missing information required for defensible calculations. Then organize systems, evaluate ECMs, and calculate savings only where the supplied data supports the calculation.`;
+  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V3.3 JSON. Perform a data-quality review first. Respect provenance tags and do not invent equipment specifications, measurements, schedules, utility rates, costs, or savings. Identify missing information required for defensible calculations. Then organize systems, evaluate ECMs, and calculate savings only where the supplied data supports the calculation.`;
   try{ await navigator.clipboard.writeText(prompt); alert("AI analysis prompt copied."); }catch{ alert(prompt); }
 }
 
