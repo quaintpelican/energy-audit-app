@@ -136,6 +136,10 @@ Use versions such as V3.1 and V4.0. Each release should identify changes, deploy
 
 **Collect once → auto-bind → calculate later → never re-enter.** Field Mode optimizes collection and Before Leaving Site review. Analysis Mode organizes approved calculation work over the same canonical audit dataset. Field documentation completeness and calculation readiness are distinct; office-only inputs do not reduce field completeness. Auto-binding must be deterministic, preserve provenance and stable source references, surface conflicts, and never silently overwrite better evidence. Proposed conditions require explicit user entry. Representative sampling requires explicit group membership and auditor confirmation.
 
+## V4.3 data ownership
+
+The auditor must be able to export the complete audit and every referenced evidence photo locally, offline, in a predictable package usable without Audist. JSON remains canonical. A complete export must never be declared successful when any referenced photo is missing. Package creation is read-only and must not transmit or mutate customer data.
+
 ## Definition of success
 An experienced auditor can enter a facility with an iPhone, work offline, efficiently collect structured evidence, know before leaving whether critical information is missing, perform transparent calculations, and produce a defensible dataset that substantially reduces ASHRAE Level 2 reporting effort.
 

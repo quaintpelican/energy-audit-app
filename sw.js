@@ -1,5 +1,5 @@
-const CACHE="audist-v4-2-analysis-workflow-1";
-const ASSETS=["./","./index.html","./styles.css?v=4.2.0","./db.js?v=4.2.0","./calculations.js?v=4.2.0","./workflow.js?v=4.2.0","./app.js?v=4.2.0","./manifest.webmanifest","./icon.svg","./audist-icon.png"];
+const CACHE="audist-v4-3-professional-export-1";
+const ASSETS=["./","./index.html","./styles.css?v=4.3.0","./db.js?v=4.3.0","./calculations.js?v=4.3.0","./workflow.js?v=4.3.0","./package-export.js?v=4.3.0","./app.js?v=4.3.0","./manifest.webmanifest","./icon.svg","./audist-icon.png"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
 });

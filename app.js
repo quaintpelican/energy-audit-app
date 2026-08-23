@@ -1,7 +1,8 @@
-const APP_VERSION = "4.2";
+const APP_VERSION = "4.3";
 const SCHEMA_VERSION = 4;
 const CALC_ENGINE = globalThis.AudistCalculations;
 const WORKFLOW = globalThis.AudistWorkflow;
+const PACKAGE_EXPORT = globalThis.AudistPackageExport;
 
 let currentAudit = null;
 let activeMode="field";
@@ -17,6 +18,7 @@ let persistedRevision = 0;
 let availablePhotoIds = new Set();
 let photoPreviewUrls = [];
 let currentMigrationBackup = null;
+let preparedPackage = null;
 
 const $ = id => document.getElementById(id);
 const nowISO = () => new Date().toISOString();
@@ -1554,6 +1556,11 @@ async function exportAudit(){
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
+function updatePackageProgress(event){const labels={validating:"Validating records…",photos:`Exporting photos ${event.done} / ${event.total}`,zipping:`Building ZIP ${event.done} / ${event.total}`,complete:"Verifying package…"};$("export-progress").querySelector("p").textContent=labels[event.stage]||"Preparing package…";$("export-progress-bar").max=Math.max(1,event.total||1);$("export-progress-bar").value=event.done||0;}
+function downloadPackage(){if(!preparedPackage)return;const url=URL.createObjectURL(preparedPackage.blob),a=document.createElement("a");a.href=url;a.download=preparedPackage.fileName;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+async function saveOrSharePackage(){if(!preparedPackage)return;const file=new File([preparedPackage.blob],preparedPackage.fileName,{type:"application/zip"});try{if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){await navigator.share({files:[file],title:"Audist Audit Package"});return;}}catch(error){if(error?.name==="AbortError")return;console.warn(error);}downloadPackage();}
+async function exportAuditPackage(){if(!PACKAGE_EXPORT){alert("Professional export module is unavailable. Refresh once online and retry.");return;}await flushPendingSave();const source=structuredClone(currentAudit),dialog=$("export-dialog");preparedPackage=null;$("export-result").classList.add("hidden");$("save-package-btn").classList.add("hidden");$("export-progress").classList.remove("hidden");$("export-progress-bar").value=0;dialog.showModal();try{const stored=await dbGetPhotosForAudit(source.auditId),readiness=WORKFLOW?.exportReadiness(source,CALC_ENGINE)||[];preparedPackage=await PACKAGE_EXPORT.build(source,stored,readiness,updatePackageProgress);const m=preparedPackage.manifest,c=m.counts,failed=m.integrity.status==="FAIL";$("export-progress").classList.add("hidden");$("export-result").classList.remove("hidden");$("export-result").innerHTML=`<h3>Audit Package ${failed?"Incomplete":"Ready"}</h3><div class="review-grid"><div class="metric"><strong>${c.systems}</strong><span>Systems</span></div><div class="metric"><strong>${c.equipment}</strong><span>Equipment</span></div><div class="metric"><strong>${c.measurements}</strong><span>Measurements</span></div><div class="metric"><strong>${c.photosExported}/${c.photosReferenced}</strong><span>Photos</span></div><div class="metric"><strong>${c.ecms}</strong><span>ECMs</span></div><div class="metric"><strong>${c.calculations}</strong><span>Calculations</span></div></div><p class="integrity-${m.integrity.status.toLowerCase()}"><strong>Integrity: ${m.integrity.status.replaceAll("_"," ")}</strong></p>${m.integrity.errors.length?`<details open><summary>${m.integrity.errors.length} error(s)</summary><ul>${m.integrity.errors.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul></details>`:""}${m.integrity.warnings.length?`<details><summary>${m.integrity.warnings.length} warning(s)</summary><ul>${m.integrity.warnings.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul></details>`:""}`;if(!failed||confirm("The package is incomplete and its manifest records FAIL. Save this expert-review package anyway?"))$("save-package-btn").classList.remove("hidden");}catch(error){console.error(error);$("export-progress").classList.add("hidden");$("export-result").classList.remove("hidden");$("export-result").innerHTML=`<h3>Export Failed</h3><p class="badge-critical">${escapeHtml(error.message||String(error))}</p><p>The audit and stored evidence were not modified.</p>`;}}
+
 function exportMigrationBackup(){
   if(!currentMigrationBackup?.audit){ alert("No migration backup is available for this audit."); return; }
   const safe=(currentMigrationBackup.audit.site?.facilityName||"energy-audit").replace(/[^a-z0-9]+/gi,"_");
@@ -1571,7 +1578,7 @@ async function deleteCurrentAudit(){
   await showDashboard();
 }
 async function copyPrompt(){
-  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V4.2 JSON. Perform a data-quality review first. Respect provenance tags, evidence levels, calculation maturity, QA flags, method validation status, dependencies, engineering component boundaries, revision history, stale-calculation status, and derived engineering readiness. Do not invent equipment specifications, measurements, schedules, utility rates, costs, or savings. Use only the recorded approved method IDs and their saved inputs/outputs. Identify missing field and office information required for defensible calculations.`;
+  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V4.3 audit package. Read manifest.json first, treat audit.json as canonical, and use CSV/photo files as interoperable evidence. Respect provenance, evidence levels, calculation maturity, QA flags, method validation status, dependencies, revision history, stale status, and engineering readiness. Do not invent equipment specifications, measurements, schedules, utility rates, costs, or savings. Identify missing field and office information required for defensible calculations.`;
   try{ await navigator.clipboard.writeText(prompt); alert("AI analysis prompt copied."); }catch{ alert(prompt); }
 }
 
@@ -1627,9 +1634,12 @@ $("cancel-ecm").onclick=()=>$("ecm-dialog").close();
 $("close-ecm").onclick=()=>$("ecm-dialog").close();
 
 $("export-btn").onclick=exportAudit;
+$("export-package-btn").onclick=exportAuditPackage;
+$("save-package-btn").onclick=saveOrSharePackage;
+$("close-export").onclick=$("cancel-export").onclick=()=>$("export-dialog").close();
 $("export-migration-backup-btn").onclick=exportMigrationBackup;
 $("delete-audit-btn").onclick=deleteCurrentAudit;
 $("copy-prompt-btn").onclick=copyPrompt;
 
 showDashboard();
-if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=4.2.0").catch(console.error); }
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js?v=4.3.0").catch(console.error); }

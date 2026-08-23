@@ -1,6 +1,6 @@
-# Audist Data Schema — V4.2
+# Audist Data Schema — V4.3
 
-V4.2 retains audit schema `4` and IndexedDB database version `3`. The canonical audit continues to include `systems[]`, `equipment[]`, `ecms[]`, and `calculations[]`, with optional additive `equipmentGroups[]`. Existing schema-4 audit data is not rewritten on open.
+V4.3 retains audit schema `4` and IndexedDB database version `3`. The canonical audit continues to include `systems[]`, `equipment[]`, `ecms[]`, and `calculations[]`, with optional additive `equipmentGroups[]`. Existing schema-4 audit data is not rewritten on open.
 
 ## Workflow additions
 
@@ -30,6 +30,10 @@ Each `calculations[]` record contains:
 - `calculatedAt`, `updatedAt`, and optional `staleAt`.
 
 An ECM may contain `calculationIds[]`. Editing an ECM preserves this and all unrelated fields. Equipment or ECM deletion is blocked while calculations reference it. Export includes calculation records unchanged. Calculations store input snapshots for reproducibility while source fingerprints detect changed or missing sources.
+
+## Export container
+
+The professional package has independent `packageFormatVersion: 1`; this does not change audit schema 4. The exported audit copy may add derived `engineeringAnalysis` and photo `packagePath`/MIME metadata. The stored audit is not changed. Stable UUIDs remain authoritative; filenames are presentation only.
 
 ## Compatibility
 

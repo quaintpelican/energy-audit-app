@@ -18,6 +18,10 @@ All 25 California V1.1 `READY-V1` methods are implemented offline with explicit 
 
 Field and Analysis modes; input-timing classification; deterministic source auto-binding; routine ECM recipes; analysis queue; Before Leaving Site review; explicit equipment groups and representative sampling; separate field-documentation/calculation readiness; derived export readiness. No calculation method or formula changed.
 
+## V4.3 professional audit package — release candidate
+
+Offline ZIP export containing canonical JSON, manifest integrity results, interoperable CSV tables, current photo Blobs, and legacy photos; safe filenames; iPhone share/download; no schema/database migration.
+
 ## Future — requires separate approval
 
-Validate each `VALIDATE-V2` methodology, add field evidence, deterministic references, and independent release review before numerical implementation. Report generation, cloud sync, tariff automation, inferred grouping, and deemed/default savings remain outside V4.2.
+Validate each `VALIDATE-V2` methodology, add field evidence, deterministic references, and independent release review before numerical implementation. Report generation, cloud sync, tariff automation, inferred grouping, and deemed/default savings remain outside V4.3.

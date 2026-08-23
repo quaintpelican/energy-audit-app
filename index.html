@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="audist-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=4.2.0" />
+  <link rel="stylesheet" href="styles.css?v=4.3.0" />
   <title>Audist</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V4.2 • Offline-first</p>
+      <p id="header-status">V4.3 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -37,6 +37,7 @@
           <p id="save-status" class="save-status">Saved locally</p>
         </div>
         <div class="actions">
+          <button id="export-package-btn">Export Audit Package</button>
           <button class="secondary" id="export-btn">Export JSON (photos excluded)</button>
           <button class="secondary hidden" id="export-migration-backup-btn">Export Pre-Migration Backup</button>
           <button class="secondary" id="delete-audit-btn">Delete</button>
@@ -142,6 +143,13 @@
       </section>
     </section>
   </main>
+
+  <dialog id="export-dialog">
+    <div class="dialog-head"><h3>Professional Audit Package</h3><button class="secondary icon" id="close-export">✕</button></div>
+    <div id="export-progress" class="export-progress"><strong>Preparing Audit Package</strong><p class="muted">Validating records…</p><progress id="export-progress-bar" max="1" value="0"></progress></div>
+    <div id="export-result" class="hidden"></div>
+    <div class="dialog-actions"><button id="save-package-btn" class="hidden">Save / Share Package</button><button class="secondary" id="cancel-export">Close</button></div>
+  </dialog>
 
   <dialog id="equipment-dialog">
     <div class="dialog-head"><h3 id="equipment-dialog-title">Add Equipment</h3><button class="secondary icon" id="close-equipment">✕</button></div>
@@ -303,9 +311,10 @@
     </div>
   </dialog>
 
-  <script src="db.js?v=4.2.0"></script>
-  <script src="calculations.js?v=4.2.0"></script>
-  <script src="workflow.js?v=4.2.0"></script>
-  <script src="app.js?v=4.2.0"></script>
+  <script src="db.js?v=4.3.0"></script>
+  <script src="calculations.js?v=4.3.0"></script>
+  <script src="workflow.js?v=4.3.0"></script>
+  <script src="package-export.js?v=4.3.0"></script>
+  <script src="app.js?v=4.3.0"></script>
 </body>
 </html>

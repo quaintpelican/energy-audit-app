@@ -1,5 +1,14 @@
 # Changelog
 
+## V4.3 Professional Audit Package Export — release candidate
+
+- Added local offline ZIP generation with `packageFormatVersion: 1` and no dependency or backend.
+- Added canonical `audit.json`, integrity `manifest.json`, six UTF-8 CSV tables, and human-readable photo folders.
+- Added sequential IndexedDB Blob export, legacy data-URL decoding, safe filenames, collision protection, orphan detection, and ZIP verification.
+- Missing referenced photos and broken authoritative relationships produce `FAIL`; incomplete expert exports remain explicitly labeled.
+- Added visible progress, result counts, Web Share file support, and download fallback.
+- Retained audit schema 4, IndexedDB version 3, all V4.2 persistence/calculation behavior, and read-only export semantics.
+
 ## V4.2 Field/Analysis Workflow — release candidate
 
 - Added Field and Analysis modes over one canonical offline audit dataset.

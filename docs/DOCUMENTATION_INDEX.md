@@ -26,6 +26,8 @@ Never place customer audit data, utility data, or facility photos in a public so
 
 V4.2 retains `ENGINEERING_CALCULATION_LIBRARY_CA.md` as the governing calculation-method source. Workflow metadata may organize approved methods and inputs, but it may not alter formulas, invent evidence, or imply that validation-only methods calculate savings.
 
+- [PROFESSIONAL_AUDIT_PACKAGE.md](PROFESSIONAL_AUDIT_PACKAGE.md) — V4.3 ZIP structure, manifest, integrity, photo, CSV, versioning, and limitations.
+
 
 
 ## V4.0 Phase 1 additions

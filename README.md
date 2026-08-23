@@ -1,8 +1,14 @@
-# Audist — V4.2 Field/Analysis Workflow
+# Audist — V4.3 Professional Audit Package Export
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
-## V4.2 workflow refinement
+## V4.3 portable audit package
+
+**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables and normal image files are interoperable representations of the same evidence. `manifest.json` records package format version 1, record/photo counts, warnings, errors, and `PASS`, `PASS_WITH_WARNINGS`, or `FAIL`. A referenced photo that cannot be packaged is always `FAIL`.
+
+The export is read-only. Current IndexedDB photo Blobs are processed sequentially without base64 conversion; legacy embedded data URLs remain exportable. The package uses sanitized human-readable paths while stable UUIDs remain authoritative. iPhone Web Share is used when file sharing is supported, with a standard download fallback.
+
+## V4.2 workflow baseline
 
 V4.2 separates fast onsite collection from office analysis without creating a second copy of audit data. Field Mode retains facility, systems, equipment, measurements, photos, ECM capture, and a Before Leaving Site review. Analysis Mode provides a deterministic ECM queue, method recipes, source auto-binding, proposed-condition entry, utility-rate entry, and readiness states. A value is collected once, referenced by stable UUID/source metadata, and snapshotted only when a calculation is saved.
 
@@ -18,7 +24,7 @@ No deemed/default value is silently supplied. An auditor may explicitly enter an
 
 ## Storage and migration
 
-V4.2 keeps audit schema version 4 and IndexedDB database version 3. `equipmentGroups[]` and ECM `analysisRecipe`/`equipmentGroupId` fields are additive and optional. Existing schema-4 audits open byte-equivalent and are not rewritten merely by opening them. Existing audit, equipment, measurement, photo, ECM, migration-backup, and unresolved-reference safeguards remain in force. The DB-v3 rollback bridge remains compatible.
+V4.3 keeps audit schema version 4 and IndexedDB database version 3. `equipmentGroups[]` and ECM `analysisRecipe`/`equipmentGroupId` fields are additive and optional. Existing schema-4 audits open byte-equivalent and are not rewritten merely by opening them. Existing audit, equipment, measurement, photo, ECM, migration-backup, and unresolved-reference safeguards remain in force. The DB-v3 rollback bridge remains compatible.
 
 ## Offline behavior and export
 
@@ -29,6 +35,19 @@ V4.2 keeps audit schema version 4 and IndexedDB database version 3. `equipmentGr
 Run `npm test`. The suite includes workflow timing, recipe, source-priority/conflict, source reuse, sampling, field/analysis readiness, queue, and export-readiness tests in addition to all V4.1 calculation and reliability coverage.
 
 ## iPhone release-candidate procedure
+
+1. Open the V4.3 HTTPS preview in Safari, refresh once online, then add it to the Home Screen.
+2. Create/open a test audit containing two systems, two equipment records, measurements, a utility month, an ECM, and a saved calculation.
+3. Capture an Overview and Nameplate photo, background the app immediately, relaunch, and confirm both photos remain visible.
+4. Turn on Airplane Mode, fully close the Home Screen app, relaunch, and choose **Export Audit Package**.
+5. Confirm progress advances through validation, photos, ZIP building, and verification. Confirm the result counts match the audit and integrity is `PASS` (or shows every intentional warning).
+6. Tap **Save / Share Package**, save to Files, and confirm the filename ends `_Audist.zip`.
+7. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all six files under `tables/`, and every expected image under `photos/` open normally.
+8. Verify `manifest.json` reports `packageFormatVersion: 1`, matching counts, and `photosReferenced == photosExported`.
+9. Verify a CSV containing commas/notes opens with intact columns and that `audit.json` retains UUIDs, provenance, readiness, calculations, dependencies, assumptions, QA flags, and photo package paths.
+10. Return to Audist and confirm the audit, calculations, and photos are unchanged. Delete one test photo Blob only in a disposable browser test environment, export again, and confirm integrity is `FAIL`, never a warning/pass.
+
+### Existing calculation and migration regression
 
 1. Install/open the V4 branch preview in Safari, refresh once online, then add it to the Home Screen.
 2. Open an existing V3.3 audit and verify its systems, equipment, measurements, photos, ECM links, unresolved references, and migration warning/export remain unchanged.
