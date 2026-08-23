@@ -99,7 +99,7 @@ const MEASUREMENT_PRESETS = {
 };
 const EQUIPMENT_SUBTYPES={
   PackagedHVAC:["RTU","Split system","Heat pump"],AirHandling:["AHU","MAU","DOAS","Exhaust / relief fan"],
-  ChilledWater:["Chiller","CHW pump","Condenser water pump"],BoilersHeatingWater:["Boiler","Heating-water pump"],Steam:["Steam boiler","Steam equipment"],
+  ChilledWater:["Chiller"],BoilersHeatingWater:["Boiler"],Steam:["Steam boiler","Steam equipment"],
   Pumps:["CHW pump","HHW pump","Condenser pump","Domestic pump","Process pump"],Fans:["Supply fan","Return fan","Exhaust fan","Relief fan"],
   MotorsDrives:["Motor","VFD / starter"],CoolingTowers:["Cooling tower"],BASControls:["BAS system","Controller","Thermostat","Sensor","Sequence / reset strategy"],
   Lighting:["Fixture group","Lighting area","Exterior lighting"],DHW:["Storage water heater","Tankless water heater","Heat pump water heater","DHW boiler"],
