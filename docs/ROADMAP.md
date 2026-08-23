@@ -1,6 +1,6 @@
 # Audist — Product Roadmap
 
-## Current state: V3
+## Current state: V3.1 reliability baseline
 Validated on iPhone:
 - PWA deployment through GitHub Pages;
 - offline application loading;
@@ -16,7 +16,7 @@ Validated on iPhone:
 - initial completeness scoring;
 - JSON export for AI analysis.
 
-## Immediate priority — V3.1: Reliability + dynamic completeness
+## Completed — V3.1: Reliability + dynamic completeness
 Problem: V3 completeness is calculated when an ECM is created, not continuously.
 
 Goals:
@@ -30,14 +30,24 @@ Goals:
 
 Success criterion: auditor can open an ECM at any time and see an accurate onsite missing-data list.
 
-## V3.2: Field-speed improvements
-- duplicate equipment;
+## Current candidate — V3.2: System Coverage & Field Schema
+- facility System Inventory / Audit Scope;
+- first-class `systems[]` with stable equipment relationships;
+- broad commercial/industrial equipment taxonomy;
+- pragmatic equipment-specific field schemas;
+- structured BAS/operations data;
+- equipment duplication and next IDs;
+- measurement presets;
+- equipment-family photo expectations;
+- no engineering calculators.
+
+Success criterion: an auditor can represent the major energy-using systems in most commercial/industrial buildings without falling back to generic notes.
+
+## V3.3: Field-speed refinement
 - repeated-value reuse;
-- faster measurement presets by equipment type;
-- equipment-specific photo prompts;
 - improved navigation/search;
 - equipment status/completeness;
-- better one-handed iPhone workflow.
+- faster one-handed iPhone workflows informed by V3.2 field testing.
 
 ## V4.0: Engineering calculation engine
 Start with rigorously defined methods:
@@ -55,7 +65,7 @@ Requirements:
 - reproducible outputs;
 - warnings when data is insufficient.
 
-## V4.x: Broader audit coverage
+## V4.x: Coverage refinement and calculation expansion
 Progressively add equipment-specific schemas and ECMs for:
 - boilers/chillers/towers;
 - pumps/fans/motors;
