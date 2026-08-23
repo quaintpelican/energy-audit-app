@@ -1,5 +1,5 @@
-const APP_VERSION = "3.1";
-const SCHEMA_VERSION = 3;
+const APP_VERSION = "3.2";
+const SCHEMA_VERSION = 4;
 
 let currentAudit = null;
 let activeType = "HVAC";
@@ -18,13 +18,36 @@ const $ = id => document.getElementById(id);
 const nowISO = () => new Date().toISOString();
 const uid = () => crypto.randomUUID();
 
+const SYSTEM_TYPES = [
+  ["PackagedHVAC","Packaged HVAC","RTU"],["AirHandling","Air Handling / Ventilation","AHU"],
+  ["ChilledWater","Chilled Water","CHWS"],["BoilersHeatingWater","Boilers / Heating Water","HHWS"],
+  ["Steam","Steam","STM"],["Pumps","Pumps","PUMP"],["Fans","Fans","FAN"],
+  ["MotorsDrives","Motors / Drives","MTR"],["CoolingTowers","Cooling Towers","CT"],
+  ["BASControls","BAS / Controls","BAS"],["Lighting","Lighting","LTG"],
+  ["DHW","Domestic Hot Water","DHW"],["Refrigeration","Refrigeration","REF"],
+  ["CompressedAir","Compressed Air","CA"],["ProcessLoads","Process Loads","PROC"],
+  ["PlugLoads","Plug / Miscellaneous Loads","PLUG"],["Envelope","Building Envelope","ENV"],
+  ["SolarPV","Solar PV","PV"],["EnergyStorage","Energy Storage","ESS"],["Other","Other","OTH"]
+];
+const SYSTEM_LABELS=Object.fromEntries(SYSTEM_TYPES.map(([key,label])=>[key,label]));
+const SYSTEM_PREFIXES=Object.fromEntries(SYSTEM_TYPES.map(([key,,prefix])=>[key,prefix]));
+
+const COMMON_EQUIPMENT_FIELDS = [
+  ["equipmentId","Equipment ID",""],["equipmentSubtype","Equipment Type",""],
+  ["manufacturer","Manufacturer",""],["model","Model",""],["serial","Serial",""]
+];
 const schemas = {
-  HVAC: [
-    ["equipmentId","Equipment ID","AHU-1"],["equipmentSubtype","Type","RTU / AHU / Split / Boiler / Chiller"],
-    ["manufacturer","Manufacturer",""],["model","Model",""],["serial","Serial",""],["capacity","Cooling / Heating Capacity",""],
-    ["efficiency","Efficiency (EER/SEER/COP/AFUE)",""],["fanHp","Fan/Motor HP",""],["vfd","VFD?","Yes / No"],
-    ["schedule","Operating Schedule",""],["controls","Controls / Sequence",""]
-  ],
+  PackagedHVAC:[...COMMON_EQUIPMENT_FIELDS,["capacity","Cooling / Heating Capacity",""],["efficiency","Efficiency (EER/SEER/COP)",""],["refrigerant","Refrigerant",""],["fanHp","Fan / Motor HP",""],["vfd","VFD / Starter",""],["schedule","Operating Schedule",""],["controls","Controls / Sequence",""]],
+  AirHandling:[...COMMON_EQUIPMENT_FIELDS,["airflow","Design Airflow","cfm"],["fanHp","Fan / Motor HP",""],["motorEfficiency","Motor Efficiency","%"],["vfd","VFD / Starter",""],["staticPressureSetpoint","Static Pressure Setpoint","in. w.c."],["schedule","Operating Schedule",""],["controls","Controls / Resets / Staging",""]],
+  ChilledWater:[...COMMON_EQUIPMENT_FIELDS,["compressorType","Compressor Type",""],["refrigerant","Refrigerant",""],["nominalTons","Nominal Capacity","tons"],["fullLoadEfficiency","Full-load Efficiency","kW/ton or COP"],["iplv","IPLV / NPLV (if available)",""],["chwEnteringTemp","CHW Design Entering Temp","°F"],["chwLeavingTemp","CHW Design Leaving Temp","°F"],["condenserType","Condenser Type","Air / Water"],["schedule","Operating Schedule",""],["controls","Controls / Staging",""]],
+  BoilersHeatingWater:[...COMMON_EQUIPMENT_FIELDS,["fuel","Fuel",""],["inputCapacity","Input Capacity",""],["outputCapacity","Output Capacity",""],["efficiency","Efficiency","% or AFUE"],["designSupplyTemp","Design Supply Temp","°F"],["designReturnTemp","Design Return Temp","°F"],["burnerType","Burner Type",""],["condensing","Condensing?","Yes / No"],["turndown","Turndown (if available)",""],["schedule","Operating Schedule",""],["controls","Controls / Staging",""]],
+  Steam:[...COMMON_EQUIPMENT_FIELDS,["fuel","Fuel",""],["inputCapacity","Input Capacity",""],["steamPressure","Steam Pressure","psig"],["efficiency","Efficiency","%"],["schedule","Operating Schedule",""],["controls","Controls",""]],
+  Pumps:[...COMMON_EQUIPMENT_FIELDS,["service","Service","CHW / HHW / condenser / domestic / process"],["designFlow","Design Flow","gpm"],["designHead","Design Head","ft"],["motorHp","Motor HP",""],["motorEfficiency","Motor Efficiency","%"],["vfd","VFD Status",""],["controlMethod","Control Method",""],["schedule","Operating Schedule",""]],
+  Fans:[...COMMON_EQUIPMENT_FIELDS,["service","Fan Service","Supply / Return / Exhaust / Relief"],["designAirflow","Design Airflow","cfm"],["motorHp","Motor HP",""],["motorEfficiency","Motor Efficiency","%"],["vfd","VFD Status",""],["controlMethod","Control Method",""],["schedule","Operating Schedule",""]],
+  MotorsDrives:[...COMMON_EQUIPMENT_FIELDS,["ratedHp","Rated HP",""],["motorEfficiency","Motor Efficiency","%"],["voltage","Voltage","V"],["driveType","Drive / Starter Type",""],["service","Driven Equipment / Service",""],["schedule","Operating Schedule",""]],
+  CoolingTowers:[...COMMON_EQUIPMENT_FIELDS,["towerType","Tower Type","Open / Closed circuit"],["cells","Number of Cells",""],["fanHp","Fan HP",""],["vfd","VFD Status",""],["designFlow","Design Flow","gpm"],["approachRange","Approach / Range (if available)","°F"],["controls","Controls / Staging",""]],
+  BASControls:[...COMMON_EQUIPMENT_FIELDS,["controlLevel","Control Level","Building / system / zone"],["networkProtocol","Protocol","BACnet / proprietary"],["pointsSummary","Points / Sensors Summary",""],["schedule","Occupancy / HVAC Schedule",""],["controls","Sequence / Reset Strategy",""],
+    ["temperatureSetpoints","Temperature Setpoints",""],["setupSetback","Setup / Setback",""],["optimumStartStop","Optimum Start / Stop",""],["economizerStrategy","Economizer Strategy",""],["satReset","Supply-Air-Temperature Reset",""],["staticPressureReset","Static-Pressure Reset",""],["chwReset","Chilled-Water Reset",""],["hhwReset","Heating-Water Reset",""],["pumpDpReset","Pump Differential-Pressure Reset",""],["dcv","Demand-Control Ventilation",""],["simultaneousHeatingCooling","Simultaneous Heating / Cooling Observation",""],["equipmentStaging","Equipment Staging",""]],
   Lighting: [
     ["equipmentId","Area / Fixture ID","LTG-1"],["equipmentSubtype","Fixture Type","2x4 troffer / high bay / exterior"],
     ["quantity","Quantity",""],["existingWatts","Existing Watts / Fixture",""],["lampType","Lamp / Technology","T8 / T12 / LED / HID"],
@@ -35,14 +58,56 @@ const schemas = {
     ["manufacturer","Manufacturer",""],["model","Model",""],["fuel","Fuel","Natural Gas / Electric"],
     ["input","Input Capacity","kBtu/h or kW"],["storage","Storage Volume","gal"],["efficiency","Efficiency / UEF",""],
     ["setpoint","Setpoint °F",""],["recirc","Recirculation?","Yes / No"],["schedule","Operating Schedule",""]
-  ]
+  ],
+  Refrigeration:[...COMMON_EQUIPMENT_FIELDS,["refrigerationType","Type","Walk-in / reach-in / rack / condenser / evaporator"],["refrigerant","Refrigerant",""],["capacity","Capacity",""],["temperatureSetpoint","Temperature Setpoint","°F"],["compressorControls","Compressor Controls",""],["schedule","Operating Schedule",""]],
+  CompressedAir:[...COMMON_EQUIPMENT_FIELDS,["compressorType","Compressor Type","Rotary screw / reciprocating / centrifugal"],["ratedHp","Rated HP",""],["ratedCfm","Rated CFM",""],["pressureSetpoint","Pressure Setpoint","psig"],["controls","Controls / Sequencing",""],["dryerType","Dryer Type",""],["schedule","Operating Schedule",""]],
+  ProcessLoads:[...COMMON_EQUIPMENT_FIELDS,["process","Process / Service",""],["ratedPower","Rated Power","kW or HP"],["loadProfile","Load Profile",""],["schedule","Operating Schedule",""]],
+  PlugLoads:[...COMMON_EQUIPMENT_FIELDS,["spaceOrProcess","Space / Process",""],["quantity","Quantity",""],["unitPower","Unit Power","W"],["controlMethod","Control Method",""],["schedule","Operating Schedule",""]],
+  Envelope:[...COMMON_EQUIPMENT_FIELDS,["assemblyType","Assembly Type","Roof / wall / window / door / skylight / infiltration"],["area","Area","ft²"],["construction","Construction",""],["insulation","Insulation",""],["thermalValue","Known / Estimated R-value or U-value",""],["condition","Condition",""],["orientation","Orientation (where relevant)",""]],
+  SolarPV:[...COMMON_EQUIPMENT_FIELDS,["dcCapacity","DC Capacity","kWdc"],["acCapacity","AC Capacity","kWac"],["moduleType","Module Type",""],["inverterType","Inverter Type",""],["commissionedYear","Commissioned Year",""],["controls","Monitoring / Controls",""]],
+  EnergyStorage:[...COMMON_EQUIPMENT_FIELDS,["storageType","Storage Type","Battery / thermal"],["energyCapacity","Energy Capacity","kWh or ton-hr"],["powerCapacity","Power Capacity","kW"],["controlStrategy","Control Strategy",""],["schedule","Operating Schedule",""]],
+  Other:[...COMMON_EQUIPMENT_FIELDS,["service","Service / Description",""],["ratedPower","Rated Power / Capacity",""],["schedule","Operating Schedule",""],["controls","Controls",""]]
 };
 
 const PHOTO_REQUIREMENTS = {
-  HVAC: {required:["Equipment Overview","Nameplate"], recommended:["Controls"]},
+  PackagedHVAC: {required:["Equipment Overview","Nameplate"], recommended:["Controls"]},
+  AirHandling: {required:["Equipment Overview","Nameplate"], recommended:["Controls"]},
+  ChilledWater:{required:["Equipment Overview","Nameplate"],recommended:["Controls"]},
+  BoilersHeatingWater:{required:["Equipment Overview","Nameplate"],recommended:["Burner / Controls"]},
+  Steam:{required:["Equipment Overview","Nameplate"],recommended:["Burner / Controls"]},
+  Pumps:{required:["Equipment Overview"],recommended:["Motor Nameplate","VFD / Starter"]},
+  Fans:{required:["Equipment Overview"],recommended:["Motor Nameplate","VFD / Starter"]},
+  MotorsDrives:{required:["Equipment Overview","Nameplate"],recommended:["VFD / Starter"]},
+  CoolingTowers:{required:["Equipment Overview"],recommended:["Nameplate","Fan / Drive"]},
+  BASControls:{required:[],recommended:["Controls / BAS Screen"]},
   Lighting: {required:["Equipment Overview"], recommended:["Controls"]},
-  DHW: {required:["Equipment Overview","Nameplate"], recommended:["Controls"]}
+  DHW: {required:["Equipment Overview","Nameplate"], recommended:["Controls"]},
+  Refrigeration:{required:["Equipment Overview","Nameplate"],recommended:["Controls"]},
+  CompressedAir:{required:["Equipment Overview","Nameplate"],recommended:["Controls"]},
+  Envelope:{required:[],recommended:["Condition Photo"]}
 };
+
+const MEASUREMENT_PRESETS = {
+  PackagedHVAC:[["Supply air temperature","°F"],["Return air temperature","°F"],["Outside air temperature","°F"],["Supply RH","% RH"],["Return RH","% RH"],["Airflow","cfm"],["Static pressure","in. w.c."],["Fan amps","A"],["Fan power","kW"],["VFD speed","Hz"]],
+  AirHandling:[["Supply air temperature","°F"],["Return air temperature","°F"],["Outside air temperature","°F"],["Supply RH","% RH"],["Return RH","% RH"],["Airflow","cfm"],["Static pressure","in. w.c."],["Fan amps","A"],["Fan power","kW"],["VFD speed","Hz"]],
+  Pumps:[["Suction pressure","psi"],["Discharge pressure","psi"],["Differential pressure","psi"],["Flow","gpm"],["Motor amps","A"],["Voltage","V"],["Power","kW"],["VFD speed","Hz"]],
+  ChilledWater:[["CHW entering temperature","°F"],["CHW leaving temperature","°F"],["Condenser entering temperature","°F"],["Condenser leaving temperature","°F"],["Evaporator flow","gpm"],["Condenser flow","gpm"],["Power","kW"],["Cooling load","tons"]],
+  BoilersHeatingWater:[["Supply water temperature","°F"],["Return water temperature","°F"],["Stack temperature","°F"],["Flue O2","%"],["Flue CO2","%"],["Firing rate","%"]],
+  Steam:[["Steam pressure","psig"],["Stack temperature","°F"],["Flue O2","%"],["Firing rate","%"]],
+  CompressedAir:[["Pressure","psig"],["Power","kW"],["Motor amps","A"],["Unloaded time","min"],["Loaded time","min"],["Flow","cfm"]],
+  Lighting:[["Light level","fc"],["Measured fixture watts","W"]]
+};
+const EQUIPMENT_SUBTYPES={
+  PackagedHVAC:["RTU","Split system","Heat pump"],AirHandling:["AHU","MAU","DOAS","Exhaust / relief fan"],
+  ChilledWater:["Chiller","CHW pump","Condenser water pump"],BoilersHeatingWater:["Boiler","Heating-water pump"],Steam:["Steam boiler","Steam equipment"],
+  Pumps:["CHW pump","HHW pump","Condenser pump","Domestic pump","Process pump"],Fans:["Supply fan","Return fan","Exhaust fan","Relief fan"],
+  MotorsDrives:["Motor","VFD / starter"],CoolingTowers:["Cooling tower"],BASControls:["BAS system","Controller","Thermostat","Sensor","Sequence / reset strategy"],
+  Lighting:["Fixture group","Lighting area","Exterior lighting"],DHW:["Storage water heater","Tankless water heater","Heat pump water heater","DHW boiler"],
+  Refrigeration:["Walk-in","Reach-in","Compressor rack","Condenser","Evaporator"],CompressedAir:["Compressor","Dryer","Receiver"],
+  Envelope:["Roof","Wall","Window","Door","Skylight","Infiltration / air-sealing observation"],ProcessLoads:["Process equipment"],PlugLoads:["Plug load group"],
+  SolarPV:["Solar PV array","Inverter"],EnergyStorage:["Battery storage","Thermal storage"],Other:["Other equipment"]
+};
+PHOTO_REQUIREMENTS.HVAC=PHOTO_REQUIREMENTS.PackagedHVAC;
 
 const ECM_TEMPLATES = {
   hvac_vfd:{
@@ -165,6 +230,7 @@ function blankAudit(){
     status:"Draft",
     site:{auditDate:new Date().toISOString().slice(0,10)},
     utility:{electricRate:"",demandRate:"",gasRate:"",notes:"",months:[]},
+    systems:[],
     equipment:[],
     ecms:[],
     calculations:[],
@@ -193,15 +259,45 @@ function migrateAudit(audit){
     migrated.metadata = {...(migrated.metadata||{}), app:"Audist", appVersion:APP_VERSION};
   }
 
+  if(oldVersion < 4){
+    migrated.schemaVersion=4;
+    migrated.systems=Array.isArray(migrated.systems)?migrated.systems:[];
+  }
+
   migrated.metadata=migrated.metadata||{};
+  migrated.metadata.appVersion=APP_VERSION;
+  migrated.systems=Array.isArray(migrated.systems)?migrated.systems:[];
   migrated.equipment=migrated.equipment||[];
   migrated.ecms=migrated.ecms||[];
   migrated.calculations=migrated.calculations||[];
   migrated.equipment.forEach(eq=>{
+    if(eq.systemType==="HVAC"){ eq.systemType="PackagedHVAC"; changed=true; }
     if(!eq.recordId){ eq.recordId=uid(); changed=true; }
     if(!Array.isArray(eq.measurements)){ eq.measurements=[]; changed=true; }
     if(!Array.isArray(eq.photos)){ eq.photos=[]; changed=true; }
+    if(!eq.fieldProvenance||typeof eq.fieldProvenance!=="object"){ eq.fieldProvenance={}; changed=true; }
     if(!eq.status){ eq.status="complete"; changed=true; }
+    let system=eq.systemRecordId&&migrated.systems.find(s=>s.systemRecordId===eq.systemRecordId);
+    if(!system){
+      system=migrated.systems.find(s=>s.systemType===eq.systemType);
+      if(!system){
+        system={systemRecordId:uid(),systemId:`${SYSTEM_PREFIXES[eq.systemType]||"SYS"}-01`,systemType:eq.systemType||"Other",name:SYSTEM_LABELS[eq.systemType]||eq.systemType||"Other",status:"Present",equipmentRecordIds:[],controlsSummary:"",operatingSchedule:"",notes:"",createdAt:nowISO(),updatedAt:nowISO()};
+        migrated.systems.push(system);
+      }
+      eq.systemRecordId=system.systemRecordId;
+      changed=true;
+    }
+    system.equipmentRecordIds=Array.isArray(system.equipmentRecordIds)?system.equipmentRecordIds:[];
+    if(!system.equipmentRecordIds.includes(eq.recordId)){ system.equipmentRecordIds.push(eq.recordId); changed=true; }
+  });
+  migrated.systems.forEach(system=>{
+    if(!system.systemRecordId){ system.systemRecordId=uid(); changed=true; }
+    if(!Array.isArray(system.equipmentRecordIds)){ system.equipmentRecordIds=[]; changed=true; }
+    const validIds=migrated.equipment.filter(eq=>eq.systemRecordId===system.systemRecordId).map(eq=>eq.recordId);
+    if(JSON.stringify(system.equipmentRecordIds)!==JSON.stringify(validIds)){ system.equipmentRecordIds=validIds; changed=true; }
+    if(!system.status){ system.status="Present"; changed=true; }
+    if(!system.createdAt){ system.createdAt=nowISO(); changed=true; }
+    if(!system.updatedAt){ system.updatedAt=system.createdAt; changed=true; }
   });
 
   migrated.ecms.forEach(ecm=>{
@@ -244,7 +340,7 @@ function migrateAudit(audit){
     const combined=[...new Set([...existing,...warnings])];
     if(JSON.stringify(combined)!==JSON.stringify(existing)){ migrated.metadata.migrationWarnings=combined; changed=true; }
   }
-  if(oldVersion < 3){
+  if(oldVersion < SCHEMA_VERSION){
     migrated.metadata.migratedFromSchemaVersion=oldVersion;
     migrated.metadata.migratedAt=nowISO();
   }
@@ -256,12 +352,18 @@ function validateAuditStructure(audit){
   if(!audit||typeof audit!=="object") errors.push("Audit is not an object.");
   if(!String(audit?.auditId||"").trim()) errors.push("Audit ID is missing.");
   if(!audit?.site||typeof audit.site!=="object"||Array.isArray(audit.site)) errors.push("Site record is invalid.");
-  for(const key of ["equipment","ecms","calculations"]){
+  for(const key of ["systems","equipment","ecms","calculations"]){
     if(!Array.isArray(audit?.[key])) errors.push(`${key} must be an array.`);
   }
   const recordIds=(audit?.equipment||[]).map(eq=>eq.recordId);
   if(recordIds.some(id=>!String(id||"").trim())) errors.push("An equipment record UUID is missing.");
   if(new Set(recordIds).size!==recordIds.length) errors.push("Equipment record UUIDs are not unique.");
+  const systemIds=(audit?.systems||[]).map(system=>system.systemRecordId);
+  if(systemIds.some(id=>!String(id||"").trim())) errors.push("A system record UUID is missing.");
+  if(new Set(systemIds).size!==systemIds.length) errors.push("System record UUIDs are not unique.");
+  (audit?.equipment||[]).forEach(eq=>{
+    if(eq.systemRecordId&&!systemIds.includes(eq.systemRecordId)) errors.push(`Equipment ${eq.equipmentId||eq.recordId} references a missing system.`);
+  });
   (audit?.ecms||[]).forEach(ecm=>{
     if(!Array.isArray(ecm.affectedEquipmentRecordIds)) errors.push(`ECM ${ecm.ecmId||"(unknown)"} has invalid UUID relationships.`);
     if(!Array.isArray(ecm.unresolvedEquipmentReferences||[])) errors.push(`ECM ${ecm.ecmId||"(unknown)"} has invalid unresolved relationships.`);
@@ -467,32 +569,100 @@ async function deleteUtilityMonth(id){
   else currentAudit.utility.months=previous;
 }
 
+function nextSystemId(type){
+  const prefix=SYSTEM_PREFIXES[type]||"SYS";
+  let n=1;
+  const used=new Set((currentAudit.systems||[]).map(s=>String(s.systemId||"").toLowerCase()));
+  while(used.has(`${prefix}-${String(n).padStart(2,"0")}`.toLowerCase())) n++;
+  return `${prefix}-${String(n).padStart(2,"0")}`;
+}
+
+function renderSystemInventory(){
+  currentAudit.systems=Array.isArray(currentAudit.systems)?currentAudit.systems:[];
+  const selected=new Set((currentAudit.systems||[]).map(s=>s.systemType));
+  $("system-scope").innerHTML=SYSTEM_TYPES.map(([key,label])=>`<label class="scope-option"><input type="checkbox" data-system-scope="${key}" ${selected.has(key)?"checked":""}>${label}</label>`).join("");
+  document.querySelectorAll("[data-system-scope]").forEach(el=>el.addEventListener("change",systemScopeChanged));
+  $("system-detail-list").innerHTML=(currentAudit.systems||[]).map(system=>`<div class="item"><strong>${escapeHtml(system.systemId)} — ${escapeHtml(system.name||SYSTEM_LABELS[system.systemType])}</strong>
+    <div class="system-fields">
+      <label>Name<input data-system-record="${system.systemRecordId}" data-system-field="name" value="${escapeHtml(system.name||"")}"></label>
+      <label>Status<select data-system-record="${system.systemRecordId}" data-system-field="status"><option ${system.status==="Present"?"selected":""}>Present</option><option ${system.status==="Not Audited"?"selected":""}>Not Audited</option><option ${system.status==="Out of Service"?"selected":""}>Out of Service</option></select></label>
+      <label>Operating Schedule<input data-system-record="${system.systemRecordId}" data-system-field="operatingSchedule" value="${escapeHtml(system.operatingSchedule||"")}"></label>
+      <label>Controls Summary<input data-system-record="${system.systemRecordId}" data-system-field="controlsSummary" value="${escapeHtml(system.controlsSummary||"")}"></label>
+      <label>Notes<input data-system-record="${system.systemRecordId}" data-system-field="notes" value="${escapeHtml(system.notes||"")}"></label>
+    </div></div>`).join("");
+  document.querySelectorAll("[data-system-field]").forEach(el=>el.addEventListener("input",systemFieldChanged));
+  $("system-count").textContent=`${currentAudit.systems.length} present`;
+  renderEquipmentTabs();
+}
+
+async function systemScopeChanged(e){
+  const type=e.target.dataset.systemScope;
+  const previousSystems=structuredClone(currentAudit.systems||[]);
+  const previousActiveType=activeType;
+  if(e.target.checked){
+    if(!currentAudit.systems.some(s=>s.systemType===type)) currentAudit.systems.push({systemRecordId:uid(),systemId:nextSystemId(type),systemType:type,name:SYSTEM_LABELS[type],status:"Present",equipmentRecordIds:[],controlsSummary:"",operatingSchedule:"",notes:"",createdAt:nowISO(),updatedAt:nowISO()});
+  }else{
+    const system=currentAudit.systems.find(s=>s.systemType===type);
+    if(system&&(system.equipmentRecordIds||[]).length){ e.target.checked=true; alert("Remove or reassign this system's equipment before marking the system absent."); return; }
+    currentAudit.systems=currentAudit.systems.filter(s=>s.systemType!==type);
+  }
+  if(!currentAudit.systems.some(s=>s.systemType===activeType)) activeType=currentAudit.systems[0]?.systemType||"";
+  if(await saveCurrent()) render();
+  else{ currentAudit.systems=previousSystems; activeType=previousActiveType; render(); }
+}
+
+function systemFieldChanged(e){
+  const system=currentAudit.systems.find(s=>s.systemRecordId===e.target.dataset.systemRecord);
+  if(!system) return;
+  system[e.target.dataset.systemField]=e.target.value;
+  system.updatedAt=nowISO();
+  queueSave();
+}
+
+function renderEquipmentTabs(){
+  const systems=currentAudit.systems||[];
+  if(!systems.some(s=>s.systemType===activeType)) activeType=systems[0]?.systemType||"";
+  $("equipment-tabs").innerHTML=systems.map(system=>`<button class="tab ${system.systemType===activeType?"active":""}" data-type="${system.systemType}">${escapeHtml(SYSTEM_LABELS[system.systemType]||system.name)}</button>`).join("");
+  document.querySelectorAll("#equipment-tabs .tab").forEach(button=>button.addEventListener("click",()=>{ activeType=button.dataset.type; render(); }));
+}
+
 function nextEquipmentId(type){
-  const prefix = type==="HVAC" ? "RTU" : type==="Lighting" ? "LTG" : "DHW";
+  const prefix = SYSTEM_PREFIXES[type]||"EQ";
   let n=1;
   while(currentAudit.equipment.some(eq=>String(eq.equipmentId).toLowerCase()===`${prefix}-${String(n).padStart(2,"0")}`.toLowerCase())) n++;
   return `${prefix}-${String(n).padStart(2,"0")}`;
 }
 
 function renderEquipmentFields(type, values={}){
-  $("equipment-fields").innerHTML=schemas[type].map(([id,label,ph])=>`
-    <label>${label}<input data-equipment-field="${id}" id="f_${id}" placeholder="${ph}" value="${escapeHtml(values[id]||"")}"></label>`).join("");
+  $("equipment-fields").innerHTML=(schemas[type]||schemas.Other).map(([id,label,ph])=>id==="equipmentSubtype"
+    ? `<label>${label}<select data-equipment-field="${id}" id="f_${id}"><option value="">Select...</option>${(EQUIPMENT_SUBTYPES[type]||["Other equipment"]).map(option=>`<option ${values[id]===option?"selected":""}>${escapeHtml(option)}</option>`).join("")}</select></label>`
+    : `<label>${label}<input data-equipment-field="${id}" id="f_${id}" placeholder="${ph}" value="${escapeHtml(values[id]||"")}">${id==="equipmentId"?"":`<select data-equipment-provenance="${id}" aria-label="${escapeHtml(label)} provenance"><option value="">Provenance...</option>${["Measured","Nameplate","Estimated","Assumed","Calculated"].map(p=>`<option ${values.fieldProvenance?.[id]===p?"selected":""}>${p}</option>`).join("")}</select>`}</label>`).join("");
   document.querySelectorAll("[data-equipment-field]").forEach(el=>el.addEventListener("input",equipmentFieldChanged));
+  document.querySelectorAll("[data-equipment-provenance]").forEach(el=>el.addEventListener("change",equipmentProvenanceChanged));
 }
 async function openNewEquipment(){
+  if(activeType==="HVAC") activeType="PackagedHVAC";
+  currentAudit.systems=Array.isArray(currentAudit.systems)?currentAudit.systems:[];
+  let system=currentAudit.systems.find(s=>s.systemType===activeType);
+  if(!system){
+    system={systemRecordId:uid(),systemId:nextSystemId(activeType),systemType:activeType,name:SYSTEM_LABELS[activeType]||activeType,status:"Present",equipmentRecordIds:[],controlsSummary:"",operatingSchedule:"",notes:"",createdAt:nowISO(),updatedAt:nowISO()};
+    currentAudit.systems.push(system);
+  }
   draftEquipment={
-    recordId:uid(),systemType:activeType,equipmentId:nextEquipmentId(activeType),
-    measurements:[],photos:[],potentialEcmFlags:[],createdAt:nowISO(),updatedAt:nowISO(),status:"in_progress"
+    recordId:uid(),systemRecordId:system.systemRecordId,systemType:activeType,equipmentId:nextEquipmentId(activeType),
+    measurements:[],photos:[],fieldProvenance:{},potentialEcmFlags:[],createdAt:nowISO(),updatedAt:nowISO(),status:"in_progress"
   };
   currentAudit.equipment.push(draftEquipment);
+  system.equipmentRecordIds.push(draftEquipment.recordId);
   if(!await saveCurrent()){
     currentAudit.equipment=currentAudit.equipment.filter(eq=>eq.recordId!==draftEquipment.recordId);
+    system.equipmentRecordIds=system.equipmentRecordIds.filter(id=>id!==draftEquipment.recordId);
     draftEquipment=null;
     alert("Equipment could not be created because local persistence failed. No equipment record was retained.");
     return;
   }
   $("equipment-record-id").value=draftEquipment.recordId;
-  $("equipment-dialog-title").textContent=`Add ${activeType} Equipment`;
+  $("equipment-dialog-title").textContent=`Add ${SYSTEM_LABELS[activeType]||activeType} Equipment`;
   renderEquipmentFields(activeType,draftEquipment);
   $("equipmentNotes").value="";
   $("equipmentFlags").value="";
@@ -500,12 +670,39 @@ async function openNewEquipment(){
   await renderDraftPhotos();
   $("equipment-dialog").showModal();
 }
+
+async function duplicateEquipment(){
+  if(!draftEquipment) return;
+  const copy=structuredClone(draftEquipment);
+  copy.recordId=uid();
+  copy.equipmentId=nextEquipmentId(copy.systemType);
+  copy.measurements=[];
+  copy.photos=[];
+  copy.createdAt=nowISO(); copy.updatedAt=copy.createdAt; copy.status="in_progress";
+  currentAudit.equipment.push(copy);
+  const system=currentAudit.systems.find(s=>s.systemRecordId===copy.systemRecordId);
+  if(system) system.equipmentRecordIds.push(copy.recordId);
+  if(!await saveCurrent()){
+    currentAudit.equipment=currentAudit.equipment.filter(eq=>eq.recordId!==copy.recordId);
+    if(system) system.equipmentRecordIds=system.equipmentRecordIds.filter(id=>id!==copy.recordId);
+    alert("The duplicate could not be saved and was not retained.");
+    return;
+  }
+  draftEquipment=copy;
+  $("equipment-record-id").value=copy.recordId;
+  $("equipment-dialog-title").textContent=`Duplicate ${SYSTEM_LABELS[copy.systemType]||copy.systemType} Equipment`;
+  renderEquipmentFields(copy.systemType,copy);
+  $("equipmentNotes").value=copy.notes||"";
+  $("equipmentFlags").value=(copy.potentialEcmFlags||[]).join(", ");
+  renderDraftMeasurements();
+  await renderDraftPhotos();
+}
 async function editEquipment(id){
   const existing=currentAudit.equipment.find(x=>x.recordId===id);
   draftEquipment=existing;
   activeType=existing.systemType;
   $("equipment-record-id").value=id;
-  $("equipment-dialog-title").textContent=`Edit ${activeType} Equipment`;
+  $("equipment-dialog-title").textContent=`Edit ${SYSTEM_LABELS[activeType]||activeType} Equipment`;
   renderEquipmentFields(activeType,existing);
   $("equipmentNotes").value=existing.notes||"";
   $("equipmentFlags").value=(existing.potentialEcmFlags||[]).join(", ");
@@ -523,6 +720,15 @@ function equipmentFieldChanged(e){
     if(duplicate){ e.target.reportValidity(); return; }
   }
   draftEquipment[key]=e.target.value;
+  draftEquipment.updatedAt=nowISO();
+  queueSave();
+}
+function equipmentProvenanceChanged(e){
+  if(!draftEquipment) return;
+  draftEquipment.fieldProvenance=draftEquipment.fieldProvenance||{};
+  const key=e.target.dataset.equipmentProvenance;
+  if(e.target.value) draftEquipment.fieldProvenance[key]=e.target.value;
+  else delete draftEquipment.fieldProvenance[key];
   draftEquipment.updatedAt=nowISO();
   queueSave();
 }
@@ -564,15 +770,26 @@ async function deleteEquipment(id){
   const previous=currentAudit.equipment;
   const deleting=previous.find(x=>x.recordId===id);
   currentAudit.equipment=previous.filter(x=>x.recordId!==id);
+  const system=(currentAudit.systems||[]).find(s=>s.systemRecordId===deleting?.systemRecordId);
+  const previousSystemEquipment=system?[...system.equipmentRecordIds]:null;
+  if(system) system.equipmentRecordIds=system.equipmentRecordIds.filter(recordId=>recordId!==id);
   const photoIds=(deleting?.photos||[]).map(p=>p.photoId).filter(id=>availablePhotoIds.has(id));
   if(await saveCurrentWithPhotos({deletePhotoIds:photoIds})) render();
-  else currentAudit.equipment=previous;
+  else{ currentAudit.equipment=previous; if(system) system.equipmentRecordIds=previousSystemEquipment; }
 }
 
 function openMeasurement(){
   ["mParameter","mValue","mUnit","mMethod","mNotes"].forEach(id=>$(id).value="");
   $("mSource").value="Measured";
+  const presets=MEASUREMENT_PRESETS[draftEquipment?.systemType]||[];
+  $("measurement-preset").innerHTML=`<option value="">Custom parameter...</option>${presets.map(([parameter,unit],i)=>`<option value="${i}">${escapeHtml(parameter)} (${escapeHtml(unit)})</option>`).join("")}`;
   $("measurement-dialog").showModal();
+}
+function measurementPresetChanged(){
+  const preset=(MEASUREMENT_PRESETS[draftEquipment?.systemType]||[])[Number($("measurement-preset").value)];
+  if(!preset) return;
+  $("mParameter").value=preset[0];
+  $("mUnit").value=preset[1];
 }
 async function saveMeasurement(){
   if(!$("mParameter").value){ alert("Parameter is required."); return; }
@@ -846,6 +1063,7 @@ function render(){
   recalculateAllCompleteness();
   $("audit-title").textContent=currentAudit.site?.facilityName||"Untitled Audit";
   $("header-status").textContent=`${currentAudit.site?.facilityName||"Active audit"} • V${APP_VERSION}`;
+  renderSystemInventory();
 
   const filtered=currentAudit.equipment.filter(x=>x.systemType===activeType);
   $("equipment-list").innerHTML=filtered.length?filtered.map(x=>{
@@ -860,7 +1078,7 @@ function render(){
         <button class="secondary small" onclick="deleteEquipment('${x.recordId}')">Delete</button>
       </div>
     </div>`;
-  }).join(""):`<p class="muted">No ${activeType} equipment added yet.</p>`;
+  }).join(""):`<p class="muted">${activeType?`No ${escapeHtml(SYSTEM_LABELS[activeType]||activeType)} equipment added yet.`:"Select a system in Audit Scope to begin equipment inventory."}</p>`;
 
   const months=currentAudit.utility?.months||[];
   $("utility-count").textContent=`${months.length} months`;
@@ -870,7 +1088,8 @@ function render(){
     <button class="secondary small" onclick="deleteUtilityMonth('${u.utilityMonthId}')">Delete</button></div></div>`).join(""):`<p class="muted">No monthly utility data added yet.</p>`;
 
   $("equipment-count").textContent=`${currentAudit.equipment.length} items`;
-  $("add-equipment-btn").textContent=`+ Add ${activeType} Equipment`;
+  $("add-equipment-btn").textContent=activeType?`+ Add ${SYSTEM_LABELS[activeType]||activeType} Equipment`:`+ Select Audit Scope First`;
+  $("add-equipment-btn").disabled=!activeType;
 
   $("ecm-list").innerHTML=currentAudit.ecms.length?currentAudit.ecms.map(x=>`
     <div class="item"><div class="row"><div onclick="openEcm('${x.ecmId}')" style="flex:1;cursor:pointer">
@@ -883,6 +1102,7 @@ function render(){
   const measurements=currentAudit.equipment.reduce((n,x)=>n+(x.measurements?.length||0),0);
   const photos=currentAudit.equipment.reduce((n,x)=>n+(x.photos?.length||0),0);
   $("review-summary").innerHTML=`
+    <div class="metric"><strong>${currentAudit.systems.length}</strong><span>Systems</span></div>
     <div class="metric"><strong>${currentAudit.equipment.length}</strong><span>Equipment</span></div>
     <div class="metric"><strong>${measurements}</strong><span>Measurements</span></div>
     <div class="metric"><strong>${photos}</strong><span>Photos</span></div>
@@ -895,6 +1115,11 @@ function collectIntegrityWarnings(){
   const normalizedIds=currentAudit.equipment.map(eq=>String(eq.equipmentId||"").trim().toLowerCase()).filter(Boolean);
   const duplicateIds=[...new Set(normalizedIds.filter((id,index)=>normalizedIds.indexOf(id)!==index))];
   if(duplicateIds.length) warnings.push(`Duplicate equipment IDs: ${duplicateIds.join(", ")}`);
+  currentAudit.systems.forEach(system=>{
+    const actual=currentAudit.equipment.filter(eq=>eq.systemRecordId===system.systemRecordId).map(eq=>eq.recordId);
+    const missing=(system.equipmentRecordIds||[]).filter(id=>!actual.includes(id));
+    if(missing.length) warnings.push(`${system.systemId}: ${missing.length} missing equipment relationship(s)`);
+  });
   currentAudit.ecms.forEach(ecm=>{
     const missing=(ecm.affectedEquipmentRecordIds||[]).filter(id=>!currentAudit.equipment.some(eq=>eq.recordId===id));
     if(missing.length) warnings.push(`${ecm.ecmId}: ${missing.length} unresolved equipment relationship(s)`);
@@ -946,7 +1171,7 @@ async function deleteCurrentAudit(){
   await showDashboard();
 }
 async function copyPrompt(){
-  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V3.1 JSON. Perform a data-quality review first. Respect provenance tags and do not invent equipment specifications, measurements, schedules, utility rates, costs, or savings. Identify missing information required for defensible calculations. Then organize systems, evaluate ECMs, and calculate savings only where the supplied data supports the calculation.`;
+  const prompt=`Act as a senior energy engineer performing an ASHRAE Level 2 analysis. Review the attached Audist V3.2 JSON. Perform a data-quality review first. Respect provenance tags and do not invent equipment specifications, measurements, schedules, utility rates, costs, or savings. Identify missing information required for defensible calculations. Then organize systems, evaluate ECMs, and calculate savings only where the supplied data supports the calculation.`;
   try{ await navigator.clipboard.writeText(prompt); alert("AI analysis prompt copied."); }catch{ alert(prompt); }
 }
 
@@ -968,8 +1193,10 @@ $("cancel-equipment").onclick=async()=>{ await flushPendingSave(); $("equipment-
 $("close-equipment").onclick=async()=>{ await flushPendingSave(); $("equipment-dialog").close(); render(); };
 $("equipmentNotes").addEventListener("input",syncEquipmentNotes);
 $("equipmentFlags").addEventListener("input",syncEquipmentNotes);
+$("duplicate-equipment-btn").onclick=duplicateEquipment;
 
 $("add-measurement-btn").onclick=openMeasurement;
+$("measurement-preset").addEventListener("change",measurementPresetChanged);
 $("save-measurement").onclick=saveMeasurement;
 $("cancel-measurement").onclick=()=>$("measurement-dialog").close();
 $("close-measurement").onclick=()=>$("measurement-dialog").close();
