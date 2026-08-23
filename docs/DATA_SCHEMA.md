@@ -1,7 +1,7 @@
 # Audist — Canonical Data Schema
 
 ## Status
-Initial canonical schema derived from V3. It documents current structures plus required evolution. Changes must preserve existing audits through migration.
+Canonical schema through V3.2. Changes must preserve existing audits through migration. Changes must preserve existing audits through migration.
 
 ## Schema principles
 - Every audit has a `schemaVersion`.
@@ -21,7 +21,8 @@ Audit
 - status
 - site
 - utility
-- systems/equipment[]
+- systems[]
+- equipment[]
 - ecms[]
 - calculations[]          [planned]
 - financialAnalysis       [planned]
@@ -66,6 +67,26 @@ Monthly record:
 
 Future design should support multiple accounts/meters, billing-period dates, tariffs, water, other fuels, interval data, and imported source metadata.
 
+## System
+
+V3.2 introduces a first-class facility system inventory:
+```text
+system
+- systemRecordId            stable machine UUID
+- systemId                  human-readable ID, e.g. CHWS-01
+- systemType
+- name
+- status                    Present / Not Audited / Out of Service
+- equipmentRecordIds[]
+- controlsSummary
+- operatingSchedule
+- notes
+- createdAt
+- updatedAt
+```
+
+Only systems selected as present/in scope drive equipment workflows. Unselected systems do not create completeness prompts. Equipment references its parent with `systemRecordId`.
+
 ## Equipment
 Current common structure:
 ```text
@@ -75,6 +96,8 @@ equipment
 - systemType               HVAC / Lighting / DHW / ...
 - equipmentSubtype
 - equipment-specific fields
+- fieldProvenance{}         field key → provenance enum
+- systemRecordId            parent system UUID
 - notes
 - potentialEcmFlags[]
 - measurements[]
@@ -243,8 +266,11 @@ Never overwrite incompatible old structures blindly.
 
 Recommended pattern:
 ```text
-schemaVersion 2.0 → migrateV2toV3() → schemaVersion 3.0
+schemaVersion 2.0 → migrateV2toV3() → schemaVersion 3
+schemaVersion 3 → migrateV3toV4() → schemaVersion 4
 ```
+
+V3.2 keeps IndexedDB at database version 3 because `systems[]` and equipment fields are embedded in existing audit objects. The DB3 bridge therefore remains rollback-compatible.
 
 Migration must:
 1. retain original values;
