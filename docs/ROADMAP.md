@@ -1,5 +1,13 @@
 # Audist Roadmap
 
+## V6.0 deterministic audit QA/QC — release candidate
+
+- Versioned local rule registry and stable finding lifecycle.
+- Whole-audit readiness with field, analysis, engineering-review, limitation, and report-ready states.
+- Analysis Mode dashboard plus onsite-only Field Exit contribution.
+- Canonical JSON, manifest summary, and `qa_findings.csv` export in package format 6.
+- No schema/IndexedDB migration, AI, backend, or new calculations.
+
 ## V5.3 advanced calculations — release candidate
 
 Implemented: four bounded advanced methods (`CALC-HVAC-002`, `CALC-CHW-002`, `CALC-REF-003`, `CALC-PLUG-001`), reusable offline weather/performance evidence validation, RCx container rules, advanced readiness, numerical tests, and package-format-5 canonical export. Economizer, BAS resets, floating head, DCKV thermal effects, and interactive HVAC effects remain explicitly unquantified pending method validation.

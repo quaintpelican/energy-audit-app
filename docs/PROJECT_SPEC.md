@@ -159,3 +159,7 @@ End-use energy must come from explicit baseline calculation outputs or auditor-e
 
 Advanced calculations require explicit physical/control models and adequate field, weather, trend, or manufacturer evidence. A complex model does not automatically confer high confidence. Weather bins and performance points retain their source and conditions. RCx is a container of explicit submeasures, never a building-percent savings factor. When method definition or evidence is inadequate, Audist must preserve the opportunity and return a validation/more-data state with no numerical savings. See `ADVANCED_CALCULATIONS.md`.
 
+
+## V6.0 deterministic QA/QC principle
+
+Whole-audit QA/QC must be explainable, versioned, deterministic, and non-mutating. A rule may identify missing, inconsistent, implausible, stale, or untraceable evidence, but it must not invent or silently correct data. Finding identity must remain stable across save/reload for the same rule and affected records. Engineer dispositions require explicit evidence; corrected conditions auto-clear. Report readiness is advisory and separate from export-package integrity. See `QA_QC_SPEC.md`.

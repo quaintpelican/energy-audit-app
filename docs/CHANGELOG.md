@@ -1,5 +1,14 @@
 # Changelog
 
+## V6.0 Deterministic Audit QA/QC — release candidate
+
+- Added a versioned registry of 58 deterministic QA/QC rules spanning 13 engineering categories.
+- Added stable findings, explicit engineer review/limitation states, auto-clear behavior, and whole-audit readiness.
+- Added full Analysis Mode QA review and onsite-only Field Exit findings.
+- Added canonical QA dispositions without changing audit schema 4 or IndexedDB version 3.
+- Advanced the professional package to format 6 with full `auditQa`, manifest summary, and `tables/qa_findings.csv`; package integrity remains separate.
+- Added deterministic, lifecycle, Blob-context, export, and large-audit regression tests.
+
 ## V5.3 Advanced Calculations & Controls — release candidate
 
 - Implemented unitary cooling efficiency from supported annual load/COP, boundary-consistent chiller performance-bin integration, anti-sweat heater duty controls, and verified plug-load scheduling.

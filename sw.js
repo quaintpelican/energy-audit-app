@@ -1,5 +1,5 @@
-const CACHE="audist-v5-3-advanced-calculations-1";
-const ASSETS=["./","./index.html","./styles.css?v=5.3.0","./db.js?v=5.3.0","./calculations.js?v=5.3.0","./utility-analysis.js?v=5.3.0","./end-use-analysis.js?v=5.3.0","./portfolio-analysis.js?v=5.3.0","./advanced-analysis.js?v=5.3.0","./workflow.js?v=5.3.0","./package-export.js?v=5.3.0","./app.js?v=5.3.0","./manifest.webmanifest","./icon.svg","./audist-icon.png"];
+const CACHE="audist-v6-0-audit-qaqc-1";
+const ASSETS=["./","./index.html","./styles.css?v=6.0.0","./db.js?v=6.0.0","./calculations.js?v=6.0.0","./utility-analysis.js?v=6.0.0","./end-use-analysis.js?v=6.0.0","./portfolio-analysis.js?v=6.0.0","./advanced-analysis.js?v=6.0.0","./workflow.js?v=6.0.0","./qa-rules.js?v=6.0.0","./package-export.js?v=6.0.0","./app.js?v=6.0.0","./manifest.webmanifest","./icon.svg","./audist-icon.png"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
 });

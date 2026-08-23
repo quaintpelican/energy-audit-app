@@ -30,3 +30,5 @@ The zero-dependency writer uses the standard uncompressed ZIP storage method for
 - CSV intentionally flattens a useful subset; complete fidelity remains in JSON.
 
 Format 5 retains all nine prior CSV tables. Weather bins, conditioned manufacturer performance points, RCx containers, advanced calculations, dependencies, and interactions remain canonical in JSON because flattening them would discard engineering structure. It does not change audit schema 4 or IndexedDB version 3.
+
+Format 6 retains those tables and adds `tables/qa_findings.csv`. Canonical `audit.json` includes the full generated `auditQa` snapshot and persisted `qaFindingStates[]`; `manifest.json` includes readiness, severity/category summaries, unresolved count, and current accepted limitations. `manifest.integrity` remains strictly about package/reference/photo integrity and does not become `FAIL` merely because engineering QA is unresolved.

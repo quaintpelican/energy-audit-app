@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="audist-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=5.3.0" />
+  <link rel="stylesheet" href="styles.css?v=6.0.0" />
   <title>Audist</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V5.3 • Offline-first</p>
+      <p id="header-status">V6.0 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -49,6 +49,14 @@
       <section class="card analysis-only hidden" id="analysis-queue-section">
         <div class="section-title"><div><h2>Analysis Queue</h2><p class="muted">Collect once → auto-bind → calculate later → never re-enter.</p></div><button class="secondary small" id="manage-groups-btn">Equipment Groups</button></div>
         <div id="analysis-queue" class="analysis-queue"></div>
+      </section>
+
+      <section class="card analysis-only hidden" id="audit-qa-section">
+        <div class="section-title"><div><h2>Audit QA/QC</h2><p class="muted">Deterministic review supports—not replaces—professional engineering judgment.</p></div></div>
+        <div id="audit-qa-summary" class="review-grid"></div>
+        <div class="actions"><button class="secondary small" id="confirm-field-review-btn">Confirm Field Scope Review</button><button class="secondary small" id="confirm-analysis-review-btn">Confirm Analysis Scope Review</button></div>
+        <div id="audit-qa-categories" class="list compact"></div>
+        <details class="disclosure"><summary>Review Findings</summary><div id="audit-qa-findings" class="list compact"></div></details>
       </section>
 
       <section class="card analysis-only hidden" id="end-use-section">
@@ -154,7 +162,7 @@
       <section class="card field-only">
         <h2>6. Audit Review</h2>
         <div id="review-summary" class="review-grid"></div>
-        <div class="subsection"><div class="section-title"><h3>Before Leaving Site</h3><span id="field-exit-count" class="pill">0 items</span></div><div id="field-exit-review" class="list compact"></div></div>
+        <div class="subsection"><div class="section-title"><h3>Before Leaving Site</h3><span id="field-exit-count" class="pill">0 items</span></div><div id="field-exit-review" class="list compact"></div><button class="secondary small" id="confirm-field-review-onsite-btn">Confirm Field Scope Review</button></div>
         <div class="actions">
           <button id="copy-prompt-btn">Copy AI Analysis Prompt</button>
         </div>
@@ -377,14 +385,15 @@
     </div>
   </dialog>
 
-  <script src="db.js?v=5.3.0"></script>
-  <script src="calculations.js?v=5.3.0"></script>
-  <script src="utility-analysis.js?v=5.3.0"></script>
-  <script src="end-use-analysis.js?v=5.3.0"></script>
-  <script src="portfolio-analysis.js?v=5.3.0"></script>
-  <script src="advanced-analysis.js?v=5.3.0"></script>
-  <script src="workflow.js?v=5.3.0"></script>
-  <script src="package-export.js?v=5.3.0"></script>
-  <script src="app.js?v=5.3.0"></script>
+  <script src="db.js?v=6.0.0"></script>
+  <script src="calculations.js?v=6.0.0"></script>
+  <script src="utility-analysis.js?v=6.0.0"></script>
+  <script src="end-use-analysis.js?v=6.0.0"></script>
+  <script src="portfolio-analysis.js?v=6.0.0"></script>
+  <script src="advanced-analysis.js?v=6.0.0"></script>
+  <script src="workflow.js?v=6.0.0"></script>
+  <script src="qa-rules.js?v=6.0.0"></script>
+  <script src="package-export.js?v=6.0.0"></script>
+  <script src="app.js?v=6.0.0"></script>
 </body>
 </html>

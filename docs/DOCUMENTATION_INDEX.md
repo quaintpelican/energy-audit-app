@@ -31,6 +31,7 @@ V4.2 retains `ENGINEERING_CALCULATION_LIBRARY_CA.md` as the governing calculatio
 - [END_USE_RECONCILIATION.md](END_USE_RECONCILIATION.md) — V5.1 canonical end-use models, hierarchy, provenance, reconciliation formulas, QA, persistence, export, and limitations.
 - [ECM_PORTFOLIO_INTERACTIONS.md](ECM_PORTFOLIO_INTERACTIONS.md) — V5.2 standalone-versus-portfolio savings, interaction taxonomy, sequential methods, alternatives, economics, QA, and export.
 - [ADVANCED_CALCULATIONS.md](ADVANCED_CALCULATIONS.md) — V5.3 implemented advanced methods, weather/performance evidence, readiness, refusal boundaries, RCx, and limitations.
+- [QA_QC_SPEC.md](QA_QC_SPEC.md) — V6.0 deterministic rules, finding lifecycle, readiness, field/analysis boundaries, export, and limitations.
 
 
 

@@ -10,6 +10,8 @@ V5.2 adds optional `ecmPortfolios[]` and optional ECM `recommendationStatus`, `o
 
 V5.3 adds optional `weatherDatasets[]`, `manufacturerPerformanceDatasets[]`, and `rcxContainers[]`. Weather records retain stable ID, source/station/location/period/provenance and explicit bins. Performance records retain stable ID, manufacturer/model/source document/date, metric/unit, and conditioned points. RCx records are containers referencing explicit calculation UUIDs; generic savings percentages are invalid. All additions are optional and require no audit migration.
 
+V6.0 keeps audit schema version 4 and IndexedDB version 3. It adds optional `qaDeclarations { fieldScopeReviewed, fieldScopeReviewedAt, analysisScopeReviewed, analysisScopeReviewedAt, utilityAnalysisNotRequired }` and `qaFindingStates[]`. Each state retains `findingId`, status, rule/version/category/severity/title snapshot, engineer note, and `updatedAt`. Missing collections default safely in memory; existing audits require no destructive migration or rewrite. Generated `auditQa` is an export/analysis snapshot, not a second editable source of truth.
+
 ## Workflow additions
 
 - `equipmentGroups[]`: `groupId`, name, stable `equipmentRecordIds[]`, optional explicit `sampling` (`populationSize`, `sampleSize`, sampled UUIDs, confirmation timestamp, Estimated provenance, evidence level C), and creation timestamp.

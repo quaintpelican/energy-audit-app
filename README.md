@@ -1,8 +1,10 @@
-# Audist — V5.3 Advanced Calculations & Controls
+# Audist — V6.0 Deterministic Audit QA/QC
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
 
-V5.3 implements four newly validated, deterministic methods: unitary cooling efficiency from supported annual load and COP, chiller/plant bin integration with matched boundaries, anti-sweat heater controls, and verified plug-load scheduling. It also adds canonical weather-bin, manufacturer-performance, and RCx-container structures while explicitly refusing unvalidated economizer, BAS reset, floating-head, DCKV thermal, and HVAC-interaction savings.
+V6.0 adds a local, deterministic whole-audit QA/QC engine without changing the V5.3 calculation boundary. Versioned rules identify data-integrity, field, measurement, photo, utility, calculation, provenance, end-use, ECM, portfolio, economics, export, and report-readiness issues without inventing or silently correcting engineering data.
+
+Analysis Mode now groups findings by severity/category, exposes evidence and recommended action, supports explicit engineer review or accepted-limitations notes, and reports whole-audit readiness. Field Exit Review receives only onsite-relevant blocker/high findings.
 
 ## Portable audit package
 
@@ -36,7 +38,7 @@ Analysis Mode shows modeled energy, utility baseline, unassigned residual, signe
 
 ## Storage and migration
 
-V5.3 keeps audit schema version 4 and IndexedDB database version 3. Optional `weatherDatasets[]`, `manufacturerPerformanceDatasets[]`, and `rcxContainers[]` are additive; existing audits require no migration or rewrite.
+V6.0 keeps audit schema version 4 and IndexedDB database version 3. Optional QA declarations and finding dispositions are additive; existing audits require no migration or rewrite. Professional package format 6 adds `auditQa`, a manifest QA summary, and `tables/qa_findings.csv` while keeping package integrity independent.
 
 ## Offline behavior and export
 
@@ -57,7 +59,7 @@ Run `npm test`. The suite includes hand-verifiable reconciliation, hierarchy/no-
 7. In Analysis Mode, add a manual Lighting estimate with a basis, assumption, evidence level, and stable system/equipment links. Background and relaunch; verify it persists.
 8. Confirm modeled electricity, utility baseline, residual, signed/absolute gap, coverage, and QA are understandable. Deliberately model more than the baseline and confirm Audist flags it without changing the entered value.
 9. Create a Recommended Portfolio with two overlapping ECMs. Confirm the interaction, enter the shared baseline, and set sequence. Verify standalone and adjusted values remain separately visible.
-10. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all nine files under `tables/` including portfolio/interaction CSVs, and every expected image under `photos/` open normally.
+10. Open/extract the ZIP in Files or on a desktop. Confirm `audit.json`, `manifest.json`, all ten files under `tables/` including `qa_findings.csv`, and every expected image under `photos/` open normally.
 11. Verify `manifest.json` reports `packageFormatVersion: 5`, matching portfolio, weather, manufacturer-performance, RCx, and photo counts.
 12. Verify a CSV containing commas/notes opens with intact columns and that `audit.json` retains UUIDs, provenance, end-use sources, portfolio inclusion/sequence/interactions, standalone and adjusted results, assumptions, QA flags, and photo package paths.
 13. Return to Audist and confirm the audit, calculations, portfolios, estimates, and photos are unchanged. Delete one test photo Blob only in a disposable browser test environment, export again, and confirm integrity is `FAIL`, never a warning/pass.
