@@ -22,6 +22,9 @@ Audist is not a generic inspection app. It should understand what an energy audi
 10. Keep operating cost at or near $0 where practical.
 11. Prefer simple, robust architecture over unnecessary complexity.
 
+## Current implementation through V3.2
+Audits include facility-level system scope, stable system/equipment UUID relationships, equipment-specific schemas, structured BAS/operations fields, measurement presets, per-field provenance, and equipment-family photo expectations. This field schema does not imply that engineering calculations exist.
+
 ## Current architecture
 - iPhone-first Progressive Web App.
 - HTML/CSS/JavaScript.
