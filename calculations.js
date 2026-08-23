@@ -182,7 +182,14 @@
     if(material.some(item=>item.evidenceLevel==="D"||ASSUMED_PROVENANCE.has(item.provenance))) evidenceLevel="D";
     else if(material.some(item=>item.evidenceLevel==="C"||SITE_ESTIMATE_PROVENANCE.has(item.provenance))) evidenceLevel="C";
     else if(material.length&&material.every(item=>item.evidenceLevel==="A"&&DIRECT_PROVENANCE.has(item.provenance))) evidenceLevel="A";
-    const maturity=evidenceLevel==="D"?"SCREENING":evidenceLevel==="A"&&methodId!=="CALC-FAN-002"?"HIGH_CONFIDENCE_ESTIMATE":"ENGINEERING_ESTIMATE";
+    const provenance=id=>get(inputs,id)?.provenance;
+    const highConfidence=evidenceLevel==="A"&&(
+      (["CALC-ELEC-001","CALC-ELEC-002"].includes(methodId)&&material.every(item=>["Measured","BAS / Trend"].includes(item.provenance)))||
+      (methodId==="CALC-GEN-001"&&["Measured","BAS / Trend"].includes(provenance("baselineKw"))&&provenance("annualHours")==="BAS / Trend"&&(!get(inputs,"proposedKw")||DIRECT_PROVENANCE.has(provenance("proposedKw"))))||
+      (methodId==="CALC-LTG-001"&&["Nameplate","Manufacturer","Measured"].includes(provenance("existingFixtureWatts"))&&["Manufacturer","Nameplate"].includes(provenance("proposedFixtureWatts"))&&provenance("annualHours")==="BAS / Trend")||
+      (methodId==="CALC-FAN-001"&&["Measured","BAS / Trend"].includes(provenance("measuredFanKw"))&&provenance("annualHours")==="BAS / Trend")
+    );
+    const maturity=evidenceLevel==="D"?"SCREENING":highConfidence?"HIGH_CONFIDENCE_ESTIMATE":"ENGINEERING_ESTIMATE";
     return {evidenceLevel,maturity};
   }
 

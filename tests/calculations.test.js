@@ -82,6 +82,14 @@ test("assumed/default evidence is visible and caps maturity at screening",()=>{
   assert.match(result.assumptions[0].text,/not yet confirmed/);
 });
 
+test("evidence A does not automatically become high confidence without method-specific support",()=>{
+  const ordinary=run("CALC-GEN-001",[input("baselineKw",10,"kW",{provenance:"Nameplate"}),input("annualHours",3000,"hr/yr",{provenance:"Nameplate"})]);
+  assert.equal(ordinary.evidenceLevel,"A");
+  assert.equal(ordinary.maturity,"ENGINEERING_ESTIMATE");
+  const supported=run("CALC-GEN-001",[input("baselineKw",10,"kW"),input("annualHours",3000,"hr/yr",{provenance:"BAS / Trend"})]);
+  assert.equal(supported.maturity,"HIGH_CONFIDENCE_ESTIMATE");
+});
+
 test("runtime and facility-savings sanity checks emit QA flags",()=>{
   const result=run("CALC-GEN-001",[input("baselineKw",10,"kW"),input("annualHours",9000,"hr/yr"),input("proposedKw",0,"kW")],{audit:{utility:{months:[{kwh:1000}]}}});
   assert.ok(result.qaFlags.some(flag=>flag.code==="RUNTIME_OVER_8760"));
