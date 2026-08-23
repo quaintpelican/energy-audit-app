@@ -4,6 +4,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const {webcrypto} = require("node:crypto");
+const appSource=fs.readFileSync(path.join(__dirname,"..","app.js"),"utf8");
+const htmlSource=fs.readFileSync(path.join(__dirname,"..","index.html"),"utf8");
 
 function loadApp(){
   const elements=new Map();
@@ -408,5 +410,67 @@ test("photo completeness uses equipment-family rules without requiring recommend
   `,context);
   assert.equal(result.percent,100);
   assert.equal(result.recommended[0].status,"Recommended");
+});
+
+test("V3.2 schema-4 audits open without migration or data modification",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`(()=>{
+    const audit={auditId:"audit-v32",schemaVersion:4,site:{facilityName:"Library"},utility:{months:[]},
+      systems:[{systemRecordId:"sys-1",systemId:"CHWS-01",systemType:"ChilledWater",status:"Present",equipmentRecordIds:["eq-1"],createdAt:"2026-01-01",updatedAt:"2026-01-01"}],
+      equipment:[{recordId:"eq-1",systemRecordId:"sys-1",systemType:"ChilledWater",equipmentId:"CH-01",nominalTons:"250",status:"complete",fieldProvenance:{nominalTons:"Nameplate"},measurements:[{measurementId:"m-1",value:"42"}],photos:[{photoId:"p-1"}]}],
+      ecms:[{ecmId:"ECM-01",affectedEquipmentIds:["CH-01"],affectedEquipmentRecordIds:["eq-1"],unresolvedEquipmentReferences:[]}],calculations:[],metadata:{marker:"preserve"}};
+    const before=JSON.stringify(audit);
+    const migrated=migrateAudit(audit);
+    return {changed:migrated.changed,before,after:JSON.stringify(migrated.audit)};
+  })()`,context);
+  assert.equal(result.changed,false);
+  assert.equal(result.after,result.before);
+});
+
+test("progressive-disclosure field tiers do not change equipment data",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`(()=>{
+    const equipment={equipmentId:"CH-01",nominalTons:"250",controls:"Lead/lag",iplv:"0.55"};
+    const before=JSON.stringify(equipment);
+    const tiers=[equipmentFieldTier("equipmentId"),equipmentFieldTier("controls"),equipmentFieldTier("iplv")];
+    return {before,after:JSON.stringify(equipment),tiers};
+  })()`,context);
+  assert.equal(result.after,result.before);
+  assert.deepEqual([...result.tiers],["core","controls","advanced"]);
+});
+
+test("system navigation filtering leaves equipment and ECM relationships intact",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`(()=>{
+    currentAudit={systems:[{systemType:"Pumps"},{systemType:"Lighting"}],equipment:[
+      {recordId:"eq-1",systemType:"Pumps"},{recordId:"eq-2",systemType:"Lighting"}],
+      ecms:[{ecmId:"ECM-01",affectedEquipmentRecordIds:["eq-1"]}]};
+    const before=JSON.stringify(currentAudit);
+    activeType="Pumps";
+    const visible=currentAudit.equipment.filter(eq=>eq.systemType===activeType).map(eq=>eq.recordId);
+    return {before,after:JSON.stringify(currentAudit),visible,links:currentAudit.ecms[0].affectedEquipmentRecordIds};
+  })()`,context);
+  assert.equal(result.after,result.before);
+  assert.deepEqual([...result.visible],["eq-1"]);
+  assert.deepEqual([...result.links],["eq-1"]);
+});
+
+test("concise workflow status uses existing completeness without changing it",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`(()=>{
+    currentAudit={equipment:[{recordId:"eq-1",systemType:"Pumps",photos:[]}],ecms:[{ecmId:"ECM-01",affectedEquipmentRecordIds:["eq-1"],completenessItems:[{label:"Flow",status:"Missing"}],completenessPercent:50}]};
+    availablePhotoIds=new Set();
+    const before=JSON.stringify(currentAudit.ecms[0]);
+    const status=equipmentWorkflowStatus(currentAudit.equipment[0]);
+    return {before,after:JSON.stringify(currentAudit.ecms[0]),status};
+  })()`,context);
+  assert.equal(result.after,result.before);
+  assert.equal(result.status.label,"Missing Critical Data");
+});
+
+test("V3.3 reserves Engineering Analysis UI without implementing formulas",()=>{
+  assert.match(htmlSource,/Engineering Analysis — Future V4/);
+  assert.match(appSource,/function equipmentFieldTier/);
+  assert.doesNotMatch(appSource,/function calculateAnnualSavings/);
 });
 
