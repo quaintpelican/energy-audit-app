@@ -13,7 +13,7 @@
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V3.2 • Offline-first</p>
+      <p id="header-status">V3.3 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -84,8 +84,12 @@
         <div class="section-title">
           <h2>3. System Inventory / Audit Scope</h2><span id="system-count" class="pill">0 present</span>
         </div>
-        <p class="muted">Select only systems present or intentionally included in this audit. Unselected systems do not create missing-data prompts.</p>
-        <div id="system-scope" class="scope-grid"></div>
+        <div id="selected-system-summary" class="system-summary"></div>
+        <details id="scope-editor" class="disclosure">
+          <summary>Edit Audit Scope</summary>
+          <p class="muted">Select only systems present or intentionally included. Unselected systems do not create prompts.</p>
+          <div id="system-scope" class="scope-grid"></div>
+        </details>
         <div id="system-detail-list" class="list compact"></div>
       </section>
 
@@ -133,9 +137,13 @@
   <dialog id="equipment-dialog">
     <div class="dialog-head"><h3 id="equipment-dialog-title">Add Equipment</h3><button class="secondary icon" id="close-equipment">✕</button></div>
     <input type="hidden" id="equipment-record-id" />
-    <div id="equipment-fields" class="grid"></div>
-    <label>Field Notes<textarea id="equipmentNotes" rows="3"></textarea></label>
-    <label>Potential ECM Flags<input id="equipmentFlags" placeholder="VFD, schedule reduction, replacement..." /></label>
+    <div id="equipment-status-detail" class="status-panel"></div>
+    <div id="equipment-fields"></div>
+    <details class="disclosure">
+      <summary>Observations &amp; Potential ECM Flags</summary>
+      <label>Field Notes<textarea id="equipmentNotes" rows="3"></textarea></label>
+      <label>Potential ECM Flags<input id="equipmentFlags" placeholder="VFD, schedule reduction, replacement..." /></label>
+    </details>
     <button class="secondary" id="duplicate-equipment-btn">Duplicate Equipment</button>
 
     <div class="subsection">
@@ -143,8 +151,8 @@
       <div id="measurement-list" class="list compact"></div>
     </div>
 
-    <div class="subsection">
-      <div class="section-title"><h3>Photos</h3><span class="pill">Compressed + stored on device</span></div>
+    <details class="subsection disclosure" open>
+      <summary><span>Photos</span><span id="equipment-photo-summary" class="pill">Photos 0</span></summary>
       <div class="grid">
         <label>Photo Category
           <select id="photo-category">
@@ -169,7 +177,17 @@
       <label class="photo-button">Open Camera / Choose Photo<input id="photo-input" type="file" accept="image/*" capture="environment" hidden /></label>
       <p class="muted">Photos are resized before storage to reduce audit size. Original photos remain in your iPhone camera library only if you took them outside the app.</p>
       <div id="photo-list" class="photo-grid"></div>
-    </div>
+    </details>
+
+    <details class="subsection disclosure" id="equipment-ecm-section">
+      <summary id="equipment-ecm-summary">Potential ECMs (0)</summary>
+      <div id="equipment-ecm-list" class="list compact"></div>
+    </details>
+
+    <details class="subsection disclosure future-analysis">
+      <summary>Engineering Analysis — Future V4</summary>
+      <p class="muted">Reserved for calculation status, method ID, evidence level, maturity, annual savings, financial results, assumptions, and warnings. No formulas are implemented in V3.3.</p>
+    </details>
 
     <div class="actions sticky-actions">
       <button class="secondary" id="cancel-equipment">Close</button>
@@ -180,9 +198,9 @@
   <dialog id="measurement-dialog">
     <div class="dialog-head"><h3>Add Measurement</h3><button class="secondary icon" id="close-measurement">✕</button></div>
     <div class="grid">
-      <label>Preset<select id="measurement-preset"><option value="">Custom parameter...</option></select></label>
-      <label>Parameter<input id="mParameter" placeholder="Supply air temperature" /></label>
+      <label>Measurement Preset<select id="measurement-preset"><option value="">Custom Measurement...</option></select></label>
       <label>Value<input id="mValue" inputmode="decimal" placeholder="55.2" /></label>
+      <label>Parameter<input id="mParameter" placeholder="Supply air temperature" /></label>
       <label>Unit<input id="mUnit" placeholder="°F, A, V, kW, in. w.c." /></label>
       <label>Source
         <select id="mSource">
@@ -229,6 +247,10 @@
     <label>Data Still Needed<textarea id="ecmMissing" rows="2"></textarea></label>
     <label>Confidence<select id="ecmConfidence"><option>High</option><option selected>Medium</option><option>Low</option></select></label>
     <div id="ecm-template-info" class="template-info hidden"></div>
+    <details class="disclosure future-analysis">
+      <summary>Engineering Analysis — Future V4</summary>
+      <p class="muted">Calculation status, method ID, evidence level, maturity, annual savings, financial results, assumptions, and warnings will appear here in V4. No calculations are performed in V3.3.</p>
+    </details>
     <div class="actions">
       <button class="secondary" id="cancel-ecm">Cancel</button>
       <button id="save-ecm">Save ECM</button>
