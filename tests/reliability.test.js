@@ -37,7 +37,7 @@ function loadApp(){
 
 test("refuses a schema newer than the app supports",()=>{
   const context=loadApp();
-  assert.throws(()=>vm.runInContext("migrateAudit({auditId:'a',schemaVersion:4})",context),/newer than this app supports/);
+  assert.throws(()=>vm.runInContext("migrateAudit({auditId:'a',schemaVersion:5})",context),/newer than this app supports/);
 });
 
 test("legacy migration resolves only unique equipment display IDs",()=>{
@@ -332,5 +332,81 @@ test("failed destructive persistence restores deleted equipment",async()=>{
     await deleteEquipment("eq-1");
   })()`,context);
   assert.equal(vm.runInContext("currentAudit.equipment.length",context),1);
+});
+
+test("V3.1 to V3.2 migration creates systems without losing field evidence or ECM links",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`migrateAudit({
+    auditId:"audit-1",schemaVersion:3,site:{},utility:{months:[]},metadata:{},calculations:[],
+    equipment:[{recordId:"eq-1",equipmentId:"AHU-01",systemType:"HVAC",measurements:[{measurementId:"m-1",parameter:"SAT",value:"55",unit:"°F"}],photos:[{photoId:"p-1",category:"Nameplate"}]}],
+    ecms:[{ecmId:"ECM-01",affectedEquipmentRecordIds:["eq-1"],affectedEquipmentIds:["AHU-01"],unresolvedEquipmentReferences:[]}]
+  })`,context);
+  assert.equal(result.audit.schemaVersion,4);
+  assert.equal(result.audit.systems.length,1);
+  assert.equal(result.audit.systems[0].systemType,"PackagedHVAC");
+  assert.equal(result.audit.equipment[0].systemRecordId,result.audit.systems[0].systemRecordId);
+  assert.equal(result.audit.equipment[0].measurements[0].measurementId,"m-1");
+  assert.equal(result.audit.equipment[0].photos[0].photoId,"p-1");
+  assert.deepEqual([...result.audit.ecms[0].affectedEquipmentRecordIds],["eq-1"]);
+});
+
+test("system inventory selection persists a structured system record",async()=>{
+  const context=loadApp();
+  let persisted;
+  context.dbPutAudit=async audit=>{persisted=structuredClone(audit);return audit;};
+  await vm.runInContext(`(async()=>{
+    currentAudit={auditId:"audit-1",schemaVersion:4,site:{},utility:{months:[]},systems:[],equipment:[],ecms:[],calculations:[],metadata:{}};
+    await systemScopeChanged({target:{dataset:{systemScope:"CompressedAir"},checked:true}});
+  })()`,context);
+  assert.equal(persisted.systems[0].systemType,"CompressedAir");
+  assert.match(persisted.systems[0].systemId,/^CA-/);
+  assert.deepEqual(persisted.systems[0].equipmentRecordIds,[]);
+});
+
+test("system and equipment relationship validation rejects orphaned equipment",()=>{
+  const context=loadApp();
+  assert.throws(()=>vm.runInContext(`validateAuditStructure({auditId:"a",site:{},systems:[],equipment:[{recordId:"eq-1",equipmentId:"PUMP-01",systemRecordId:"missing"}],ecms:[],calculations:[]})`,context),/missing system/);
+});
+
+test("equipment duplication assigns a unique ID and excludes measurements and photos",async()=>{
+  const context=loadApp();
+  context.dbPutAudit=async audit=>audit;
+  const result=await vm.runInContext(`(async()=>{
+    const system={systemRecordId:"sys-1",systemId:"PUMP-01",systemType:"Pumps",equipmentRecordIds:["eq-1"]};
+    draftEquipment={recordId:"eq-1",systemRecordId:"sys-1",systemType:"Pumps",equipmentId:"PUMP-01",equipmentSubtype:"CHW pump",manufacturer:"Acme",measurements:[{measurementId:"m-1"}],photos:[{photoId:"p-1"}],fieldProvenance:{manufacturer:"Nameplate"},potentialEcmFlags:[]};
+    currentAudit={auditId:"audit-1",schemaVersion:4,site:{},utility:{months:[]},systems:[system],equipment:[draftEquipment],ecms:[],calculations:[],metadata:{}};
+    await duplicateEquipment();
+    return currentAudit.equipment[1];
+  })()`,context);
+  assert.equal(result.equipmentId,"PUMP-02");
+  assert.equal(result.manufacturer,"Acme");
+  assert.equal(result.measurements.length,0);
+  assert.equal(result.photos.length,0);
+});
+
+test("measurement presets populate parameter and unit but never a value",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`
+    draftEquipment={systemType:"Pumps"};
+    openMeasurement();
+    $("measurement-preset").value="0";
+    measurementPresetChanged();
+    ({parameter:$("mParameter").value,unit:$("mUnit").value,value:$("mValue").value})
+  `,context);
+  assert.equal(result.parameter,"Suction pressure");
+  assert.equal(result.unit,"psi");
+  assert.equal(result.value,"");
+});
+
+test("photo completeness uses equipment-family rules without requiring recommendations",()=>{
+  const context=loadApp();
+  const result=vm.runInContext(`
+    availablePhotoIds=new Set(["overview","nameplate"]);
+    evaluatePhotoCompleteness({systemType:"ChilledWater",photos:[
+      {photoId:"overview",category:"Equipment Overview"},{photoId:"nameplate",category:"Nameplate"}
+    ]})
+  `,context);
+  assert.equal(result.percent,100);
+  assert.equal(result.recommended[0].status,"Recommended");
 });
 
