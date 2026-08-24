@@ -1,6 +1,8 @@
-# Audist — V6.3 Field Workflow Simplification & Desk Analysis Handoff
+# Audist — V7.0 Professional ASHRAE Level 2 Report Renderer
 
 Offline-first iPhone energy-auditing PWA supporting structured field evidence and deterministic, inspectable engineering calculations.
+
+V7.0 transforms the existing engineering record into a professional derived HTML report with cover, TOC, deterministic tables and offline SVG charts, consistent ECM sheets, portfolio-adjusted summaries, selected figures, appendices, limited branding, integrity, staleness, revisions, and browser Print / Save as PDF. **Audist owns the engineering facts and numbers. AI may draft prose. The renderer owns formatting.**
 
 V6.3 moves work to the right stage without removing the V6.2 engineering chain. **Field Mode captures evidence and opportunities. Analysis Mode develops and evaluates ECMs.** Field Mode now uses a concise utility handoff, safe equipment duplication, subtype-specific refrigeration capture, opportunity flags, and an onsite-only exit review. Analysis Mode retains detailed utility histories and adds validated external utility extraction plus ECM Candidate Review.
 
@@ -14,7 +16,7 @@ Analysis Mode now groups findings by severity/category, exposes evidence and rec
 
 ## Portable audit package
 
-**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables, normal image files, and current report JSON/HTML are interoperable representations. `manifest.json` records package format version 9 and includes the V6.3 field-handoff summary; `tables/opportunity_flags.csv` provides an interoperable flag register. A referenced photo that cannot be packaged is always `FAIL`.
+**Export Audit Package** creates a complete ZIP locally and offline. `audit.json` is canonical; UTF-8 CSV tables, normal image files, and current report JSON/HTML are interoperable representations. `manifest.json` records package format version 10, including report schema/renderer, revision, status, integrity, and source timestamp; `tables/opportunity_flags.csv` remains available. A referenced photo that cannot be packaged is always `FAIL`.
 
 The export is read-only. Current IndexedDB photo Blobs are processed sequentially without base64 conversion; legacy embedded data URLs remain exportable. The package uses sanitized human-readable paths while stable UUIDs remain authoritative. iPhone Web Share is used when file sharing is supported, with a standard download fallback.
 
@@ -44,7 +46,7 @@ Analysis Mode shows modeled energy, utility baseline, unassigned residual, signe
 
 ## Storage and migration
 
-V6.3 keeps audit schema version 4 and IndexedDB database version 3. Opportunity flags, field utility summary, and utility source metadata are additive; existing audits require no database migration or rewrite, and existing utility histories and ECMs remain unchanged. Professional package format 9 retains all V6.2 report and V6.1 AI-review artifacts.
+V7.0 keeps audit schema version 4 and IndexedDB database version 3. Professional report schema 2 is an additive derived record; existing schema-1 drafts, utility histories, ECMs, reports, and field evidence remain unchanged. Professional package format 10 retains all V6.x artifacts.
 
 ## Offline behavior and export
 

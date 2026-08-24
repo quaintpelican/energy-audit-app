@@ -1,5 +1,13 @@
 # Changelog
 
+## V7.0 Professional ASHRAE Level 2 Report Renderer — release candidate
+
+- Added report-schema-2 deterministic report model and offline professional HTML renderer.
+- Added cover/TOC, limited theme configuration, canonical utility/end-use charts, system tables, consistent ECM sheets, portfolio summaries, selected figures, and configurable appendices.
+- Added narrative-only editing, explicit engineer-ready status, lightweight revisions, staleness, and deterministic report integrity.
+- Advanced the Professional Audit Package to format 10 with standalone report HTML/assets and revision/status/integrity metadata.
+- Added synthetic retail/pharmacy golden-report coverage while retaining audit schema 4, IndexedDB 3, and all V6.x behavior.
+
 ## V6.3 Field Workflow Simplification & Desk Analysis Handoff — release candidate
 
 - Simplified Field Mode around onsite evidence, a concise utility handoff, opportunity flags, and an onsite-only Field Exit Review.

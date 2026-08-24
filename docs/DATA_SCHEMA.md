@@ -1,5 +1,9 @@
 # Audist Data Schema — V5.3
 
+## V7.0 professional report model
+
+V7.0 retains audit schema 4 and IndexedDB version 3. Report schema 2 adds renderer version, theme, configurable sections/appendices, deterministic charts/tables, ECM detail snapshots, selected figures, limitations, source references, status, revision number/history, and derived summary to separate `reports[]`. Existing V6.2 schema-1 reports are not migrated or rewritten.
+
 V4.3 retains audit schema `4` and IndexedDB database version `3`. The canonical audit continues to include `systems[]`, `equipment[]`, `ecms[]`, and `calculations[]`, with optional additive `equipmentGroups[]`. Existing schema-4 audit data is not rewritten on open.
 
 V5.0 keeps those versions and adds optional `utilityAccounts[]` inside the audit object. Account and bill UUIDs are stable and unique; every bill repeats its parent `utilityAccountId`. Legacy `utility` is retained. Only audits containing legacy monthly data receive an additive conversion and migration backup; empty V4.x audits remain byte-equivalent on open. See `UTILITY_ANALYSIS.md`.

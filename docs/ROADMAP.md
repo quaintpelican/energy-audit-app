@@ -1,5 +1,12 @@
 # Audist Roadmap
 
+## V7.0 professional report renderer — release candidate
+
+- Separate report-schema-2 model with configurable structure, branding, figures, appendices, statuses, revisions, staleness, and integrity.
+- Deterministic executive, utility, end-use, system, ECM, portfolio, and calculation tables plus offline SVG charts.
+- Professional standalone HTML with US Letter print CSS and browser Print / Save as PDF.
+- Package format 10; no audit/database migration, backend, paid PDF service, DOCX, or new engineering calculation.
+
 ## V6.3 field workflow simplification — release candidate
 
 - Field evidence and lightweight opportunity capture separated from desk ECM development.

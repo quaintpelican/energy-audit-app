@@ -1,5 +1,9 @@
 # Audist V6.2 Level 2 Report Engine
 
+## V7.0 deterministic renderer
+
+V7 extends the schema-1 narrative and numeric-claim validator with the separate schema-2 renderer in `REPORT_RENDERING_SPEC.md`. Existing fingerprints, canonical metrics, strict AI-response validation, and source separation remain authoritative. Deterministic tables and charts never depend on AI prose, and report approval remains an explicit engineer action.
+
 ## Governing boundary
 
 **The report is a representation of the Audist engineering record. Report generation must not create new engineering facts.** The engine organizes, validates, renders, and permits narrative edits to a derived deliverable. It never changes measurements, utility bills, equipment facts, ECMs, calculations, provenance, evidence, QA findings, or portfolio results.

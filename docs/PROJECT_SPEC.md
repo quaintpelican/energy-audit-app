@@ -1,5 +1,9 @@
 # Audist — Product Specification
 
+## V7.0 professional rendering principle
+
+**Audist owns the engineering facts and numbers. AI may draft prose. The renderer owns formatting.** Deterministic report components read canonical records and approved analyses, preserve nulls, units, provenance, portfolio adjustments, and limitations, and remain separate from the audit model. See `REPORT_RENDERING_SPEC.md`.
+
 ## Mission
 Build a professional, field-ready iPhone energy-auditing application supporting high-quality ASHRAE Level 2 audits.
 

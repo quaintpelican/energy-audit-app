@@ -1,4 +1,8 @@
-# Professional Audit Package — Format Version 8
+# Professional Audit Package — Format Version 10
+
+## V7.0 package format 10
+
+Format 10 preserves format 9 and exports the current schema-2 professional report as `report/report.json` plus independently viewable `report/report.html` with relative selected-photo assets. The manifest records report schema/renderer, ID, revision, status, staleness/current state, integrity, and source audit timestamp.
 
 `audit.json` is the canonical structured dataset. CSV and image files are interoperable representations of the same audit evidence; they do not replace stable UUID relationships.
 
