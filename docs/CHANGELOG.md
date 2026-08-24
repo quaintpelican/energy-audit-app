@@ -2,6 +2,8 @@
 
 ## V7.0 Professional ASHRAE Level 2 Report Renderer — release candidate
 
+- Rebuilt the report presentation as a premium engineering-publication design system with executive KPI metrics, specialized table variants, publication typography, restrained color, numbered section hierarchy, and denser technical appendices.
+- Redesigned deterministic SVG charts, ECM mini-reports, calculation/provenance panels, recommendation labels, callouts, figures, running elements, and US Letter pagination; verified a deterministic synthetic report in color and simulated grayscale.
 - Added report-schema-2 deterministic report model and offline professional HTML renderer.
 - Added cover/TOC, limited theme configuration, canonical utility/end-use charts, system tables, consistent ECM sheets, portfolio summaries, selected figures, and configurable appendices.
 - Added narrative-only editing, explicit engineer-ready status, lightweight revisions, staleness, and deterministic report integrity.

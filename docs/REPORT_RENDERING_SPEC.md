@@ -26,6 +26,14 @@ Theme configuration is limited to logo, company, accent color, footer, confident
 
 Only photos explicitly marked `includeInReport` become figures. Figure metadata retains photo ID, equipment, section, caption, order, alt text, and full/half layout. Preview resolves IndexedDB Blobs locally; exported HTML points to packaged photo files. Originals remain evidence Blobs and are not altered.
 
+### Premium publication design
+
+The V7 publication layer uses reusable offline design tokens and components rather than page-specific styling. The system defines a print-safe typographic scale, vertical rhythm, neutral/accent palette, KPI metrics, engineering/financial/executive/utility/appendix table variants, chart panels, ECM headers and performance strips, provenance/status labels, calculation panels, callouts, and single/two-column figure layouts.
+
+Executive content prioritizes decisions and current metrics; the main report prioritizes engineering interpretation; appendices prioritize traceability. Numeric table columns are right-aligned and protected from wrapping. Missing values retain explicit `Not Calculated`, `Not Quantified`, or em-dash presentation and are never converted to zero for appearance. Charts remain deterministic accessible SVG with zero baselines, units, restrained gridlines, annual-total context, and a ranked horizontal end-use view. Recommendation states remain legible by text and border treatment in grayscale.
+
+The cover, table of contents, numbered section headers, running elements, paragraph widths, table density, photograph sizing/captions, widow/orphan controls, and selective page breaks are optimized for US Letter output. Screen preview adds only a neutral workspace and page shadow; these effects are removed in print.
+
 ## Status, revisions, and integrity
 
 Statuses are `DRAFT`, `NEEDS_ENGINEER_REVIEW`, `READY_TO_ISSUE`, `STALE`, and `SUPERSEDED`. Generation does not imply approval. Engineer confirmation creates a lightweight revision with number, date, note, and source audit timestamp. Engineering fingerprint changes make the report stale; no issued report is silently refreshed.
