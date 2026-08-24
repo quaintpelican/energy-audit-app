@@ -171,3 +171,6 @@ Whole-audit QA/QC must be explainable, versioned, deterministic, and non-mutatin
 ## V6.1 AI engineering-review principle
 
 **AI reviews the engineering record; it does not become the engineering record.** AI operates only after deterministic calculations and QA/QC through a local export and strictly validated import. It cannot alter facts, calculations, savings, costs, provenance, evidence, maturity, deterministic findings, or readiness. AI observations and candidate ECMs remain advisory until explicitly dispositioned by an engineer. No API, backend, authentication, automatic transmission, paid dependency, or report generation is part of V6.1. See `AI_ENGINEERING_REVIEW_SPEC.md`.
+## V6.3 workflow principle
+
+**Field Mode captures evidence and opportunities. Analysis Mode develops and evaluates ECMs.** Collect onsite what is difficult to recover; complete utility ingestion, candidate refinement, proposed cases, calculations, economics, portfolios, QA/review, and reports at the desk. See `FIELD_WORKFLOW_V63.md`. No workflow shortcut may reduce provenance, stable relationships, persistence, or offline reliability.

@@ -1,5 +1,7 @@
 # Audist Documentation Index
 
+- [FIELD_WORKFLOW_V63.md](FIELD_WORKFLOW_V63.md) — authoritative V6.3 Field Mode/Analysis Mode handoff, duplication, refrigeration, opportunity/candidate, utility extraction, and compatibility behavior.
+
 ## Purpose
 This folder is the product and engineering knowledge base for Audist, an offline-first iPhone energy-auditing PWA supporting high-quality ASHRAE Level 2 audits.
 

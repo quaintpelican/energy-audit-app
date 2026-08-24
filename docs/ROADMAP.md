@@ -1,5 +1,14 @@
 # Audist Roadmap
 
+## V6.3 field workflow simplification — release candidate
+
+- Field evidence and lightweight opportunity capture separated from desk ECM development.
+- Concise field utility summary plus validated, explicitly confirmed external utility extraction in Analysis Mode.
+- Safe repetitive-equipment duplication and subtype-specific refrigeration capture.
+- User/rule/AI candidate review with explicit conversion into the unchanged ECM model.
+- Onsite-only Field Exit Review and revised post-field Analysis Queue.
+- Professional package format 9; no schema/database increase, backend, paid service, or automatic AI acceptance.
+
 ## V6.2 AI-assisted ASHRAE Level 2 report engine — release candidate
 
 - Local versioned report request and all-or-nothing structured import.

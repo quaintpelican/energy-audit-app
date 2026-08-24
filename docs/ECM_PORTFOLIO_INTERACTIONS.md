@@ -25,3 +25,6 @@ Portfolio evidence/maturity cannot exceed the weakest component. Combined implem
 V5.2 retains audit schema 4 and IndexedDB version 3. Package format 4 adds `tables/ecm_portfolios.csv`, `tables/ecm_interactions.csv`, complete canonical records, derived analysis, manifest summary, and reference validation.
 
 V5.2 does not optimize portfolios, apply generic percentages, automatically choose alternatives, calculate full lighting/HVAC effects, perform hourly simulation, generate reports, or use cloud services. Complex interaction networks and an in-app mutually-exclusive override workflow remain future work; the release defaults to rejecting incompatible bundles.
+## V6.3 workflow note
+
+Portfolio and interaction analysis remains an Analysis Mode activity and continues to include accepted ECMs only. Opportunity flags and unaccepted candidates are not portfolio members.

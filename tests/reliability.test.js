@@ -9,6 +9,7 @@ const calculationSource=fs.readFileSync(path.join(__dirname,"..","calculations.j
 const utilitySource=fs.readFileSync(path.join(__dirname,"..","utility-analysis.js"),"utf8");
 const endUseSource=fs.readFileSync(path.join(__dirname,"..","end-use-analysis.js"),"utf8");
 const portfolioSource=fs.readFileSync(path.join(__dirname,"..","portfolio-analysis.js"),"utf8");
+const fieldWorkflowSource=fs.readFileSync(path.join(__dirname,"..","field-workflow.js"),"utf8");
 const htmlSource=fs.readFileSync(path.join(__dirname,"..","index.html"),"utf8");
 
 function loadApp(){
@@ -42,6 +43,7 @@ function loadApp(){
   vm.runInContext(utilitySource,context,{filename:"utility-analysis.js"});
   vm.runInContext(endUseSource,context,{filename:"end-use-analysis.js"});
   vm.runInContext(portfolioSource,context,{filename:"portfolio-analysis.js"});
+  vm.runInContext(fieldWorkflowSource,context,{filename:"field-workflow.js"});
   vm.runInContext(source,context,{filename:"app.js"});
   return context;
 }

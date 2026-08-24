@@ -40,3 +40,6 @@ The zero-dependency parser supports quoted CSV and requires explicit mappings fo
 ## Export and future compatibility
 
 `audit.json` remains canonical and includes accounts, bills, and a derived utility-analysis snapshot in exports. Package format 2 expands `tables/utilities.csv` and adds only summarized analysis to the manifest. Export validates account/bill relationships. Weather normalization and purchased-energy/end-use reconciliation are future releases.
+## V6.3 utility handoff
+
+Field Mode records only fuel presence, known provider/rate schedule, history receipt status, optional user-entered analysis rate, and notes. Monthly histories remain in the unchanged V5 account/bill model in Analysis Mode. External extraction uses a versioned local request/response workflow with strict dates, units, values, duplicates, overlaps, account/audit identity, preview, and explicit confirmation; confirmed records state `AI Extracted / User Verified`. Existing utility records are not migrated or rewritten.

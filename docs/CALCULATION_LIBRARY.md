@@ -39,3 +39,6 @@ Every material input requires unit, provenance, evidence level, and a source/ass
 ## Validation
 
 Run `npm test` in the application directory. The calculation suite exercises all 25 methods, known reference results, missing inputs, unit mismatch, provenance omission, domain constraints, immutable snapshots, overlap QA, dependency fingerprints, and the no-calculation contract for every validation-only entry.
+## V6.3 workflow note
+
+V6.3 adds no calculation methods and changes no formulas. Candidate acceptance may attach applicable recipe IDs, but proposed inputs, assumptions, savings, costs, and results remain empty until explicitly supplied and deterministically calculated in Analysis Mode.

@@ -6,14 +6,14 @@
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="audist-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=6.2.0" />
+  <link rel="stylesheet" href="styles.css?v=6.3.0" />
   <title>Audist</title>
 </head>
 <body>
   <header class="app-header">
     <div>
       <h1>Audist</h1>
-      <p id="header-status">V6.2 • Offline-first</p>
+      <p id="header-status">V6.3 • Offline-first</p>
     </div>
     <button class="secondary" id="home-btn">Audits</button>
   </header>
@@ -49,6 +49,11 @@
       <section class="card analysis-only hidden" id="analysis-queue-section">
         <div class="section-title"><div><h2>Analysis Queue</h2><p class="muted">Collect once → auto-bind → calculate later → never re-enter.</p></div><button class="secondary small" id="manage-groups-btn">Equipment Groups</button></div>
         <div id="analysis-queue" class="analysis-queue"></div>
+      </section>
+
+      <section class="card analysis-only hidden" id="candidate-review-section">
+        <div class="section-title"><div><h2>ECM Candidate Review</h2><p class="muted">Field flags, deterministic suggestions, and AI candidates remain advisory until an engineer accepts them.</p></div><button class="secondary small" id="refresh-candidates-btn">Refresh</button></div>
+        <div id="candidate-summary" class="review-grid"></div><div id="candidate-list" class="list compact"></div>
       </section>
 
       <section class="card analysis-only hidden" id="audit-qa-section">
@@ -115,7 +120,12 @@
         <label>General Site Notes<textarea data-site="siteNotes" rows="3"></textarea></label>
       </section>
 
-      <section class="card" id="utility-section">
+      <section class="card field-only" id="utility-field-section">
+        <div class="section-title"><h2>2. Utility Handoff</h2><span class="pill">Field summary</span></div>
+        <div class="grid"><label class="check-label"><input id="field-electricity" type="checkbox"> Electricity present</label><label class="check-label"><input id="field-gas" type="checkbox"> Natural gas present</label><label class="check-label"><input id="field-water" type="checkbox"> Water present</label><label class="check-label"><input id="field-other-fuel" type="checkbox"> Other fuel present</label><label>Provider if known<input id="field-utility-provider"></label><label>Rate schedule if known<input id="field-rate-schedule"></label><label>Utility history status<select id="field-history-status"><option>NOT_REQUESTED</option><option>REQUESTED</option><option>RECEIVED</option><option>PARTIAL</option><option>NOT_AVAILABLE</option></select></label><label>Approximate analysis rate (optional)<input id="field-approx-rate" type="number" step="any" inputmode="decimal"></label></div><label>Utility notes<input id="field-utility-notes"></label>
+      </section>
+
+      <section class="card analysis-only hidden" id="utility-section">
         <div class="section-title">
           <h2>2. Utility Analysis</h2><span id="utility-count" class="pill">0 accounts</span>
         </div>
@@ -126,7 +136,7 @@
           <label>Utility Notes<input id="utility-notes" placeholder="Tariff, seasonal notes, anomalies..." /></label>
         </div>
         <div id="utility-analysis-summary" class="review-grid"></div>
-        <div class="section-title"><h3>Accounts &amp; Bills</h3><button class="secondary small" id="add-utility-btn">+ Account</button></div>
+        <div class="section-title"><h3>Accounts &amp; Bills</h3><div class="actions"><button class="secondary small" id="prepare-utility-extraction-btn">Import Utility History</button><input class="hidden" id="utility-source-file" type="file" accept=".csv,.pdf,image/*"><button class="secondary small" id="import-utility-response-btn">Import Extraction Response</button><input class="hidden" id="utility-response-file" type="file" accept="application/json,.json"><button class="secondary small" id="add-utility-btn">+ Account</button></div></div>
         <div id="utility-list" class="list compact"></div>
       </section>
 
@@ -152,9 +162,9 @@
         <button id="add-equipment-btn">+ Add Equipment</button>
       </section>
 
-      <section class="card field-only">
+      <section class="card analysis-only hidden">
         <div class="section-title">
-          <h2>5. ECM Opportunities</h2><span id="ecm-count" class="pill">0</span>
+          <h2>Custom ECMs</h2><span id="ecm-count" class="pill">0</span>
         </div>
         <div class="grid">
           <label>ECM Template
@@ -171,9 +181,14 @@
               <option value="boiler_efficiency">Boiler Efficiency Upgrade</option>
             </select>
           </label>
-          <div class="template-action"><button id="add-ecm-btn">+ Add ECM</button></div>
+          <div class="template-action"><button id="add-ecm-btn">+ Create Custom ECM</button></div>
         </div>
         <div id="ecm-list" class="list"></div>
+      </section>
+
+      <section class="card field-only" id="opportunity-section">
+        <div class="section-title"><div><h2>5. Opportunity Flags</h2><p class="muted">Capture the observation now; proposed cases, costs, and savings belong at the desk.</p></div><button id="add-opportunity-btn">+ Flag Opportunity</button></div>
+        <div id="opportunity-list" class="list compact"></div>
       </section>
 
       <section class="card field-only">
@@ -228,6 +243,12 @@
             <option>Motor / Drive</option>
             <option>Electrical</option>
             <option>Deficiency</option>
+            <option>Compressor</option>
+            <option>Evaporator</option>
+            <option>Condenser</option>
+            <option>Anti-Sweat Heater</option>
+            <option>Defrost</option>
+            <option>Door / Case Condition</option>
             <option>Measurement Setup</option>
             <option>Other</option>
           </select>
@@ -410,9 +431,10 @@
   <script src="advanced-analysis.js?v=6.1.0"></script>
   <script src="workflow.js?v=6.1.0"></script>
   <script src="qa-rules.js?v=6.1.0"></script>
-  <script src="ai-review.js?v=6.2.0"></script>
-  <script src="report-engine.js?v=6.2.0"></script>
-  <script src="package-export.js?v=6.2.0"></script>
-  <script src="app.js?v=6.2.0"></script>
+  <script src="ai-review.js?v=6.3.0"></script>
+  <script src="report-engine.js?v=6.3.0"></script>
+  <script src="field-workflow.js?v=6.3.0"></script>
+  <script src="package-export.js?v=6.3.0"></script>
+  <script src="app.js?v=6.3.0"></script>
 </body>
 </html>

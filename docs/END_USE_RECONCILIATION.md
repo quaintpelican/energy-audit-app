@@ -40,3 +40,6 @@ V5.1 retains audit schema 4 and IndexedDB database version 3. Existing V5.0 audi
 ## Limitations
 
 V5.1 does not provide percentage disaggregation, weather regression, hourly simulation, EnergyPlus, inferred schedules, automatic residual allocation, automatic system interactions, or automatic correction. `monthlyValues[]` is reserved for later interval/monthly evidence and is not calculated. End-use estimates remain only as defensible as their entered evidence and assumptions.
+## V6.3 workflow note
+
+End-use modeling and reconciliation remain Analysis Mode work. V6.3 does not change aggregation, native-unit handling, utility completeness, reconciliation, or ECM scale rules, and it does not require this desk analysis before leaving the site.

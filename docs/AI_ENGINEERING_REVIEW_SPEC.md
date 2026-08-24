@@ -37,3 +37,6 @@ AI candidates remain inside their source review as `SUGGESTED`, `REVIEWED`, `ACC
 Professional package format 7 adds `tables/ai_review_findings.csv`, `ai_review/ai_review_request.json`, `ai_review/AI_REVIEW_INSTRUCTIONS.md`, and one JSON file per imported historical review under `ai_review/reviews/`. `audit.json` remains canonical. AI review remains optional and never determines package integrity.
 
 The same versioned request/response validators can later sit behind an explicitly authorized API transport. V6.1 implements no such transport. V6.2 may draft a report only from deterministic records plus engineer-reviewed advisory material; it must retain citations, provenance, limitations, and human approval.
+## V6.3 candidate and utility boundaries
+
+V6.1 AI ECM suggestions remain advisory inputs to V6.3 Candidate Review and require explicit engineer accept/reject/defer. Utility extraction is a separate versioned ingestion protocol, not engineering reasoning; Audist makes no API call and imports nothing until validation, preview, and explicit user verification succeed.

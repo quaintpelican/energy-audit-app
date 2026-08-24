@@ -1,5 +1,5 @@
-const CACHE="audist-v6-2-level2-report-1";
-const ASSETS=["./","./index.html","./styles.css?v=6.2.0","./db.js?v=6.1.0","./calculations.js?v=6.1.0","./utility-analysis.js?v=6.1.0","./end-use-analysis.js?v=6.1.0","./portfolio-analysis.js?v=6.1.0","./advanced-analysis.js?v=6.1.0","./workflow.js?v=6.1.0","./qa-rules.js?v=6.1.0","./ai-review.js?v=6.2.0","./report-engine.js?v=6.2.0","./package-export.js?v=6.2.0","./app.js?v=6.2.0","./manifest.webmanifest","./icon.svg","./audist-icon.png"];
+const CACHE="audist-v6-3-field-workflow-1";
+const ASSETS=["./","./index.html","./styles.css?v=6.3.0","./db.js?v=6.1.0","./calculations.js?v=6.1.0","./utility-analysis.js?v=6.1.0","./end-use-analysis.js?v=6.1.0","./portfolio-analysis.js?v=6.1.0","./advanced-analysis.js?v=6.1.0","./workflow.js?v=6.1.0","./qa-rules.js?v=6.1.0","./ai-review.js?v=6.3.0","./report-engine.js?v=6.3.0","./field-workflow.js?v=6.3.0","./package-export.js?v=6.3.0","./app.js?v=6.3.0","./manifest.webmanifest","./icon.svg","./audist-icon.png"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
 });

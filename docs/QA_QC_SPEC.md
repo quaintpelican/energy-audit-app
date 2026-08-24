@@ -35,3 +35,6 @@ Professional package format 6 embeds the complete generated `auditQa` object in 
 The V6.0 registry checks stable IDs and references, unresolved migration relationships, field declarations and required ECM evidence, measurement IDs/units/provenance/plausibility, referenced photo payloads, utility baseline warnings, stale or incomplete calculations, source traceability, evidence/maturity conflict, end-use gaps, unsupported ECM savings, incomplete ECM definitions, economics consistency, portfolio QA flags, export errors, and analysis review declaration.
 
 Rules are intentionally conservative and inspect only represented evidence. V6.0 does not perform statistical anomaly detection, peer benchmarking, automatic correction, narrative report generation, cloud review, or AI judgment. New rule behavior requires a new rule version and regression tests.
+## V6.3 workflow QA
+
+Deterministic QA additionally checks broken opportunity relationships, converted candidates without a matching ECM, duplicate conversion, duplicated equipment retaining serial/evidence, missing refrigeration subtype data, and unverified AI-extracted utility records. Missing detailed utility history or full ECM construction during fieldwork is not itself a Field Exit failure.

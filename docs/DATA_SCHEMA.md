@@ -54,3 +54,6 @@ The professional package has independent `packageFormatVersion: 5`; this does no
 ## Compatibility
 
 V3.3 audits lacking `calculations[]` normalize to an empty array. This is additive and does not invent evidence or calculations. Existing migration backups, photo Blobs, and unresolved legacy ECM equipment references remain unchanged.
+## V6.3 additive workflow records
+
+V6.3 retains audit schema 4 and IndexedDB version 3. It adds optional/defaulted `opportunityFlags[]`, `utilityFieldSummary`, and `utilitySourceFiles[]`; existing utility accounts/bills and ECMs are neither rewritten nor back-converted. Opportunity flags use stable flag/equipment/system UUIDs, explicit source/status, timestamps, and optional conversion linkage. Utility source records contain metadata/provenance only, not source-file binary. Confirmed extracted bills retain `AI Extracted / User Verified` metadata. See `FIELD_WORKFLOW_V63.md`.

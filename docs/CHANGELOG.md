@@ -1,5 +1,15 @@
 # Changelog
 
+## V6.3 Field Workflow Simplification & Desk Analysis Handoff — release candidate
+
+- Simplified Field Mode around onsite evidence, a concise utility handoff, opportunity flags, and an onsite-only Field Exit Review.
+- Added safe equipment duplication with fresh UUID/display ID and no copied unit-specific evidence.
+- Added expanded subtype-specific refrigeration fields, measurement presets, and photo expectations with legacy Reach-In compatibility.
+- Added deterministic/advisory ECM candidate review with explicit accept/reject/defer and preserved custom ECM creation.
+- Added versioned external utility-extraction request/import with strict validation and required user verification; no API/backend.
+- Advanced the Professional Audit Package to format 9 with opportunity flags and handoff metadata.
+- Retained audit schema 4, IndexedDB version 3, existing ECM/utility/report data, and all V6.2 functionality.
+
 ## V6.2 AI-Assisted ASHRAE Level 2 Report Engine — release candidate
 
 - Added local report request/instructions and strict structured response import.

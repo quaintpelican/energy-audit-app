@@ -21,3 +21,6 @@ Photos remain user-selected through `includeInReport`; caption, section, and ord
 ## Output and limitations
 
 V6.2 supports structured JSON and responsive printable HTML. Browser Print → Save as PDF is the initial PDF workflow. Browser pagination, very large image memory, DOCX, automatic AI APIs, backend transport, cloud sync, paid PDF generation, and complex desktop publishing remain future work.
+## V6.3 report boundary
+
+Reports continue to recommend accepted ECM records only. Opportunity flags and rejected/deferred/unaccepted candidates do not become recommendations and affect report content only through an intentional later observations/future-investigation workflow. V6.3 field-handoff metadata does not stale an otherwise current report; accepting a candidate creates an ECM and therefore changes the engineering fingerprint.
